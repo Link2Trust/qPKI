@@ -150,6 +150,106 @@
                             </div>
                         </div>
 
+                        <!-- Key Usage Selection -->
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-key me-2"></i>Key Usage
+                        </h6>
+
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <p class="mb-3 text-muted">Select the allowed uses for this certificate's key:</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="digital_signature" name="key_usage" value="digital_signature" checked>
+                                            <label class="form-check-label" for="digital_signature">
+                                                <strong>Digital Signature</strong>
+                                                <br><small class="text-muted">Used to verify digital signatures on objects other than public keys and attribute certificates</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="key_encipherment" name="key_usage" value="key_encipherment">
+                                            <label class="form-check-label" for="key_encipherment">
+                                                <strong>Key Encipherment</strong>
+                                                <br><small class="text-muted">Used to encrypt/decrypt symmetric keys for key transport</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="data_encipherment" name="key_usage" value="data_encipherment">
+                                            <label class="form-check-label" for="data_encipherment">
+                                                <strong>Data Encipherment</strong>
+                                                <br><small class="text-muted">Used to encrypt/decrypt user data directly</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="key_agreement" name="key_usage" value="key_agreement">
+                                            <label class="form-check-label" for="key_agreement">
+                                                <strong>Key Agreement</strong>
+                                                <br><small class="text-muted">Used with a key agreement protocol to establish a key</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="non_repudiation" name="key_usage" value="non_repudiation">
+                                            <label class="form-check-label" for="non_repudiation">
+                                                <strong>Non-Repudiation</strong>
+                                                <br><small class="text-muted">Used to verify digital signatures for non-repudiation</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="key_cert_sign" name="key_usage" value="key_cert_sign">
+                                            <label class="form-check-label" for="key_cert_sign">
+                                                <strong>Certificate Signing</strong>
+                                                <br><small class="text-muted">Used to verify signatures on public key certificates</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="crl_sign" name="key_usage" value="crl_sign">
+                                            <label class="form-check-label" for="crl_sign">
+                                                <strong>CRL Signing</strong>
+                                                <br><small class="text-muted">Used to verify signatures on certificate revocation lists</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="encipher_only" name="key_usage" value="encipher_only">
+                                            <label class="form-check-label" for="encipher_only">
+                                                <strong>Encipher Only</strong>
+                                                <br><small class="text-muted">Only for enciphering data during key agreement</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="decipher_only" name="key_usage" value="decipher_only">
+                                            <label class="form-check-label" for="decipher_only">
+                                                <strong>Decipher Only</strong>
+                                                <br><small class="text-muted">Only for deciphering data during key agreement</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Predefined Key Usage Templates -->
+                                <div class="mt-3">
+                                    <h6 class="text-muted mb-2">Quick Templates:</h6>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="setKeyUsageTemplate('server')">
+                                            <i class="fas fa-server me-1"></i>Server Certificate
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="setKeyUsageTemplate('client')">
+                                            <i class="fas fa-user me-1"></i>Client Certificate
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="setKeyUsageTemplate('ca')">
+                                            <i class="fas fa-certificate me-1"></i>CA Certificate
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="setKeyUsageTemplate('clear')">
+                                            <i class="fas fa-times me-1"></i>Clear All
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Certificate Parameters -->
                         <h6 class="text-primary mb-3">
                             <i class="fas fa-cog me-2"></i>Certificate Parameters
@@ -294,6 +394,38 @@
     document.getElementById('cert_type_hybrid').addEventListener('change', updateCertificateTypeUI);
     document.getElementById('cert_type_classic').addEventListener('change', updateCertificateTypeUI);
     document.getElementById('classic_algorithm').addEventListener('change', updateClassicAlgorithmUI);
+
+    // Key Usage Templates
+    function setKeyUsageTemplate(template) {
+        // Get all key usage checkboxes
+        const checkboxes = document.querySelectorAll('input[name="key_usage"]');
+        
+        // Clear all checkboxes first
+        checkboxes.forEach(cb => cb.checked = false);
+        
+        // Apply template-specific selections
+        switch(template) {
+            case 'server':
+                // Server certificates typically need digital signature and key encipherment
+                document.getElementById('digital_signature').checked = true;
+                document.getElementById('key_encipherment').checked = true;
+                break;
+            case 'client':
+                // Client certificates typically need digital signature and non-repudiation
+                document.getElementById('digital_signature').checked = true;
+                document.getElementById('non_repudiation').checked = true;
+                break;
+            case 'ca':
+                // CA certificates need certificate signing and CRL signing
+                document.getElementById('digital_signature').checked = true;
+                document.getElementById('key_cert_sign').checked = true;
+                document.getElementById('crl_sign').checked = true;
+                break;
+            case 'clear':
+                // Already cleared above, do nothing
+                break;
+        }
+    }
 
     // Initialize UI
     updateCertificateTypeUI();

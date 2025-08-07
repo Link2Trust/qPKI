@@ -513,6 +513,11 @@ def create_cert():
         validity_days = int(request.form.get('validity_days', 365))
         cert_type = request.form.get('cert_type', 'hybrid')  # Get certificate type
         
+        # Extract key usage from form data
+        key_usage = request.form.getlist('key_usage')
+        if not key_usage:  # Default if none selected
+            key_usage = ['digital_signature']
+        
         # Load CA
         ca_filepath = os.path.join(CA_STORAGE_DIR, ca_filename)
         with open(ca_filepath, 'r') as f:
@@ -603,7 +608,7 @@ def create_cert():
             },
             "extensions": {
                 "basic_constraints": {"ca": False},
-                "key_usage": ["digital_signature", "key_encipherment"]
+                "key_usage": key_usage
             },
             "certificate_type": cert_type
         }
