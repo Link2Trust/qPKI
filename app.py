@@ -619,11 +619,11 @@ def create_cert():
             cert_data_obj["cryptographic_info"] = {"classical_algorithm_info": algorithm_info}
             
             if classic_algorithm == 'RSA':
-                public_key_pem = crypto_instance.export_public_key_pem(cert_keys)
-                cert_data_obj["public_keys"] = {"rsa_public_key": public_key_pem}
+                public_key_pem = crypto_instance.serialize_public_key(cert_keys[1])  # cert_keys is (private, public)
+                cert_data_obj["public_keys"] = {"rsa_public_key": public_key_pem.decode('utf-8')}
             else:  # ECC
-                public_key_pem = crypto_instance.export_public_key_pem(cert_keys)
-                cert_data_obj["public_keys"] = {"ecc_public_key": public_key_pem}
+                public_key_pem = crypto_instance.serialize_public_key(cert_keys[1])  # cert_keys is (private, public)
+                cert_data_obj["public_keys"] = {"ecc_public_key": public_key_pem.decode('utf-8')}
             
             # For classic certificates, use a simple hash as fingerprint
             import hashlib
@@ -631,7 +631,14 @@ def create_cert():
             cert_data_obj["fingerprint"] = hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
             
             # For signing, we adapt the classic key to work with CA
-            cert_private_keys = crypto_instance.serialize_private_key(cert_keys)
+            if classic_algorithm == 'RSA':
+                cert_private_keys = {
+                    "rsa_private_key": crypto_instance.serialize_private_key(cert_keys[0]).decode('utf-8')
+                }
+            else:  # ECC
+                cert_private_keys = {
+                    "ecc_private_key": crypto_instance.serialize_private_key(cert_keys[0]).decode('utf-8')
+                }
         else:
             # Hybrid certificate - use existing hybrid logic
             cert_data_obj["cryptographic_info"] = algorithm_info
