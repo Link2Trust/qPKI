@@ -8,7 +8,7 @@ signing, verification, and hybrid operations with ECC.
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 from qpki.crypto import ECCCrypto, FlexibleHybridCrypto
 import json

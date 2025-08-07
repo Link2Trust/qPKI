@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Authority Details - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-certificate me-2 text-primary"></i>Certificate Authority Details
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{{ url_for('list_cas') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to CAs
+                </a>
+                <a href="{{ url_for('view_crl', ca_filename=filename) }}" class="btn btn-outline-warning">
+                    <i class="fas fa-list-alt me-1"></i>View CRL
+                </a>
+                <a href="{{ url_for('download_cert', cert_type='ca', filename=filename) }}" class="btn btn-success">
+                    <i class="fas fa-download me-1"></i>Download
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% set certificate = ca_data.get('certificate', ca_data) %}
+    
+    <div class="row">
+        <!-- CA Information -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header quantum-gradient text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Certificate Authority Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Subject Information -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-user me-2"></i>Subject Information
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Common Name:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('common_name', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Organization:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('organization', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Org Unit:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('organizational_unit', 'N/A') }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Country:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('country', 'N/A') }}</dd>
+                                <dt class="col-sm-4">State:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('state', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Locality:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('locality', 'N/A') }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <!-- Issuer Information -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-certificate me-2"></i>Issuer Information
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Common Name:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('issuer', {}).get('common_name', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Organization:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('issuer', {}).get('organization', 'N/A') }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            {% if certificate.get('parent_ca') %}
+                            <dl class="row">
+                                <dt class="col-sm-4">Parent CA:</dt>
+                                <dd class="col-sm-8">
+                                    <code>{{ certificate.get('parent_ca', {}).get('filename', 'N/A') }}</code>
+                                </dd>
+                            </dl>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- CA Details -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-cog me-2"></i>Certificate Authority Details
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Version:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('version', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Serial Number:</dt>
+                                <dd class="col-sm-8"><code>{{ certificate.get('serial_number', 'N/A') }}</code></dd>
+                                <dt class="col-sm-4">Signature Alg:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-info">{{ certificate.get('signature_algorithm', 'N/A') }}</span>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Not Before:</dt>
+                                <dd class="col-sm-8">
+                                    {% if certificate.get('validity', {}).get('not_before') %}
+                                        {{ certificate.get('validity', {}).get('not_before', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </dd>
+                                <dt class="col-sm-4">Not After:</dt>
+                                <dd class="col-sm-8">
+                                    {% if certificate.get('validity', {}).get('not_after') %}
+                                        {{ certificate.get('validity', {}).get('not_after', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </dd>
+                                <dt class="col-sm-4">Fingerprint:</dt>
+                                <dd class="col-sm-8"><code class="text-muted">{{ certificate.get('fingerprint', 'N/A')[:20] }}...</code></dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extensions -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-puzzle-piece me-2"></i>Certificate Extensions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% set extensions = certificate.get('extensions', {}) %}
+                    
+                    <!-- Basic Constraints -->
+                    {% if extensions.get('basic_constraints') %}
+                    <h6 class="text-secondary mb-2">Basic Constraints</h6>
+                    <ul class="list-unstyled ms-3 mb-3">
+                        <li>
+                            <strong>CA:</strong> 
+                            {% if extensions.get('basic_constraints', {}).get('ca') %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </li>
+                        {% if extensions.get('basic_constraints', {}).get('path_len_constraint') is not none %}
+                        <li><strong>Path Length:</strong> {{ extensions.get('basic_constraints', {}).get('path_len_constraint', 'Unlimited') }}</li>
+                        {% endif %}
+                    </ul>
+                    {% endif %}
+
+                    <!-- Key Usage -->
+                    {% if extensions.get('key_usage') %}
+                    <h6 class="text-secondary mb-2">Key Usage</h6>
+                    <div class="mb-3">
+                        {% for usage in extensions.get('key_usage', []) %}
+                            <span class="badge bg-primary me-1">{{ usage.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cryptographic Information -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-key me-2"></i>Cryptographic Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% set crypto_info = certificate.get('cryptographic_info', {}) %}
+                    {% set hybrid_info = crypto_info.get('hybrid_key_info', {}) %}
+                    
+                    <h6 class="text-success mb-2">Hybrid Algorithm</h6>
+                    <p class="mb-3">
+                        <span class="badge bg-success">{{ hybrid_info.get('type', 'Unknown') }}</span>
+                    </p>
+
+                    <!-- Classical Algorithm -->
+                    {% set classical = hybrid_info.get('classical_algorithm', {}) %}
+                    <h6 class="text-primary mb-2">Classical Component</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li><strong>Algorithm:</strong> {{ classical.get('algorithm', 'N/A') }}</li>
+                        {% if classical.get('key_size') %}
+                            <li><strong>Key Size:</strong> {{ classical.get('key_size') }} bits</li>
+                        {% endif %}
+                        {% if classical.get('curve') %}
+                            <li><strong>Curve:</strong> {{ classical.get('curve') }}</li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- Post-Quantum Algorithm -->
+                    {% set pq_algo = hybrid_info.get('post_quantum_algorithm', {}) %}
+                    <h6 class="text-warning mb-2">Post-Quantum Component</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li><strong>Algorithm:</strong> {{ pq_algo.get('algorithm', 'N/A') }}</li>
+                        {% if pq_algo.get('variant') %}
+                            <li><strong>Variant:</strong> Dilithium{{ pq_algo.get('variant') }}</li>
+                        {% endif %}
+                        {% if pq_algo.get('security_level') %}
+                            <li><strong>Security Level:</strong> {{ pq_algo.get('security_level') }}</li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- Key Information -->
+                    {% if crypto_info.get('key_lengths') %}
+                    <h6 class="text-info mb-2">Key Lengths</h6>
+                    <ul class="list-unstyled">
+                        {% for key_type, length in crypto_info.get('key_lengths', {}).items() %}
+                            <li><strong>{{ key_type.replace('_', ' ').title() }}:</strong> {{ length }} bytes</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- CA Status -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Certificate Authority Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- CA Type -->
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">CA Type</h6>
+                        {% if certificate.get('ca_type') == 'subordinate' %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-sitemap me-1"></i>Subordinate CA
+                            </span>
+                        {% else %}
+                            <span class="badge bg-primary">
+                                <i class="fas fa-crown me-1"></i>Root CA
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- CA Status -->
+                    {% set not_after = certificate.get('validity', {}).get('not_after', '') %}
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Status</h6>
+                        <span class="badge bg-success">
+                            <i class="fas fa-check-circle me-1"></i>Active
+                        </span>
+                        <small class="text-muted d-block mt-1">
+                            Expires: {{ not_after.replace('T', ' ').replace('Z', ' UTC') if not_after else 'Unknown' }}
+                        </small>
+                    </div>
+
+                    <!-- Quantum Safe -->
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Security</h6>
+                        <span class="badge bg-success">
+                            <i class="fas fa-atom me-1"></i>Quantum Safe
+                        </span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-grid gap-2 mt-4">
+                        <a href="{{ url_for('view_crl', ca_filename=filename) }}" class="btn btn-outline-warning">
+                            <i class="fas fa-list-alt me-2"></i>View CRL
+                        </a>
+                        <a href="{{ url_for('create_cert_form') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>Issue Certificate
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw Data (Collapsible) -->
+    <div class="card shadow">
+        <div class="card-header" id="rawDataHeader">
+            <h6 class="mb-0">
+                <button class="btn btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#rawDataCollapse" aria-expanded="false">
+                    <i class="fas fa-code me-2"></i>Raw CA Certificate Data
+                </button>
+            </h6>
+        </div>
+        <div id="rawDataCollapse" class="collapse">
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded"><code>{{ ca_data | tojson(indent=2) }}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+{% endblock %}

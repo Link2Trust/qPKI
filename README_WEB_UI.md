@@ -15,27 +15,56 @@ The qPKI Web UI provides a comprehensive Flask-based interface for managing hybr
 - **Hybrid Signatures:** Every certificate contains both classical and post-quantum signatures
 
 ### 🏛️ Certificate Authority Management
-- Create self-signed root CAs with configurable cryptographic parameters
-- Support for both RSA and ECC-based CAs
-- Flexible validity periods (5-20 years)
+- Create Root CAs and Subordinate CAs
+- Support for both RSA and ECC-based CAs with Dilithium
+- Hierarchical CA structure with proper trust chains
+- Flexible validity periods (1-20 years)
 - Complete X.509v3 certificate information
-- Quantum-safe signatures
+- CA details view with cryptographic information
 
 ### 📄 Certificate Management
-- Issue certificates signed by managed CAs
-- Support for server and client certificates
-- Configurable validity periods
-- Inherit cryptographic algorithms from signing CA
-- JSON format for full hybrid signature support
+- **Full Certificate Lifecycle:**
+  - Issue certificates signed by managed CAs
+  - Support for server and client certificates
+  - Mandatory email addresses for expiration notifications
+  - Certificate type selection (Root CA, Subordinate CA, End-entity)
+  - Configurable validity periods
+  - Certificate revocation support
+- **Certificate Viewing:**
+  - Detailed certificate information display
+  - Certificate status (valid, expired, revoked)
+  - Days until expiration with color-coded badges
+  - Download certificates in JSON format
+
+### 📧 Email Notification System
+- **Automated Expiration Monitoring:**
+  - Configurable notification intervals (90, 60, 30, 14, 7, 1 days before expiry)
+  - Professional HTML and plain text email templates
+  - SMTP integration with popular email providers
+  - Duplicate notification prevention
+- **Management Interface:**
+  - Web-based notification settings configuration
+  - Test email functionality
+  - Manual certificate expiration checks
+  - Notification history and statistics
+
+### 🔄 Certificate Revocation
+- **Certificate Revocation Lists (CRL):**
+  - Revoke certificates with reason codes
+  - Generate and maintain CRLs per CA
+  - CRL viewing and download
+  - Certificate status tracking
 
 ### 🖥️ Web Interface Features
 - Modern Bootstrap 5 responsive design
-- Intuitive dashboard with system overview
-- Form-based CA and certificate creation
-- Certificate listing and detailed views
-- Download certificates in JSON format
+- Intuitive dashboard with system overview and statistics
+- Form-based CA and certificate creation with validation
+- Certificate and CA listing with search and filtering
+- Detailed certificate and CA views
 - Real-time cryptographic parameter selection
+- Certificate status indicators and expiration warnings
 - Error handling and user feedback
+- Email notification management interface
 
 ## Quick Start
 
@@ -53,7 +82,7 @@ pip install -r requirements.txt
 python3 app.py
 ```
 
-The application will start on `http://localhost:5000`
+The application will start on `http://localhost:9090`
 
 ### Directory Structure
 
@@ -87,9 +116,40 @@ The web application automatically creates:
    - Creation and expiration dates
    - Actions (view details, download)
 
-### 3. Certificate Creation (Future Feature)
+### 3. Certificate Creation
 
-Certificate creation is currently under development. The interface is ready but will be implemented in future versions.
+1. Navigate to **Certificates > Create Certificate**
+2. Select the issuing CA from the dropdown
+3. Fill in the certificate information:
+   - **Common Name:** The certificate subject (e.g., "www.example.com")
+   - **Organization:** Subject organization
+   - **Email:** **Required** - Contact email for expiration notifications
+   - **Certificate Type:** Root CA, Subordinate CA, or End-entity certificate
+4. The cryptographic parameters are inherited from the selected CA
+5. Set the validity period (1-10 years)
+6. Click **Create Certificate**
+
+### 4. Certificate Management
+
+- **View Certificates:** Navigate to **Certificates > List Certificates**
+- **Certificate Details:** Click on any certificate to view full details
+- **Certificate Status:** Certificates show their status (Valid, Expired, Revoked)
+- **Expiration Monitoring:** Days until expiration with color-coded urgency
+- **Certificate Revocation:** Revoke certificates with reason codes
+
+### 5. Email Notifications
+
+1. Navigate to **Notifications** in the main menu
+2. Configure SMTP settings for your email provider
+3. Set up notification intervals and customize email templates
+4. Test email functionality
+5. Enable automatic monitoring or run manual checks
+
+### 6. Certificate Revocation Lists (CRL)
+
+- **Revoke Certificates:** Use the revoke button in certificate details
+- **View CRLs:** Navigate to CRL section for each CA
+- **Download CRLs:** Export CRL files for external use
 
 ## Technical Details
 
@@ -201,18 +261,28 @@ Test the cryptographic components:
 python3 test_ecc.py
 ```
 
+## Implemented Features ✅
+
+- [x] **Complete certificate creation functionality** - Full certificate lifecycle management
+- [x] **Certificate revocation lists (CRL)** - Full CRL support with generation and management
+- [x] **Email notification system** - Automated expiration monitoring with SMTP integration
+- [x] **Certificate status tracking** - Real-time status monitoring and expiration warnings
+- [x] **Web interface for PKI management** - Complete Flask-based UI
+- [x] **Hybrid cryptography support** - RSA/ECC + Dilithium combinations
+- [x] **Certificate hierarchy** - Root CA and Subordinate CA support
+
 ## Future Enhancements
 
-- [ ] Complete certificate creation functionality
-- [ ] Certificate revocation lists (CRL)
 - [ ] OCSP responder integration
 - [ ] Hardware Security Module (HSM) support
-- [ ] X.509 PEM/DER export
-- [ ] Certificate validation and verification
+- [ ] X.509 PEM/DER export (partial implementation available)
+- [ ] Advanced certificate validation and path verification
 - [ ] Multi-user authentication and authorization
 - [ ] Certificate templates and profiles
 - [ ] Automated certificate renewal
 - [ ] Integration with external CAs
+- [ ] REST API for certificate operations
+- [ ] Certificate backup and restore functionality
 
 ## Support
 

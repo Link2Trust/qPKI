@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Revocation List - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-list-alt me-2 text-danger"></i>Certificate Revocation List
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{{ url_for('list_cas') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to CAs
+                </a>
+                <form method="POST" action="{{ url_for('generate_crl', ca_filename=ca_filename) }}" class="d-inline">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-sync me-1"></i>Generate/Update CRL
+                    </button>
+                </form>
+                {% if crl_data.get('revoked_certificates') %}
+                <a href="{{ url_for('download_crl', ca_filename=ca_filename) }}" class="btn btn-success">
+                    <i class="fas fa-download me-1"></i>Download CRL
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% set certificate = ca_data.get('certificate', ca_data) %}
+    
+    <div class="row">
+        <!-- CRL Information -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>CRL Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- CRL Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-certificate me-2"></i>Issuing CA
+                            </h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Common Name:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('common_name', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Organization:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('organization', 'N/A') }}</dd>
+                                <dt class="col-sm-4">CA File:</dt>
+                                <dd class="col-sm-8"><code>{{ ca_filename }}</code></dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-2">
+                                <i class="fas fa-clock me-2"></i>CRL Timing
+                            </h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Version:</dt>
+                                <dd class="col-sm-8">{{ crl_data.get('version', 'N/A') }}</dd>
+                                <dt class="col-sm-4">This Update:</dt>
+                                <dd class="col-sm-8">
+                                    {% if crl_data.get('this_update') %}
+                                        {{ crl_data.get('this_update', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </dd>
+                                <dt class="col-sm-4">Next Update:</dt>
+                                <dd class="col-sm-8">
+                                    {% if crl_data.get('next_update') %}
+                                        {{ crl_data.get('next_update', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </dd>
+                                {% if crl_data.get('crl_number') %}
+                                <dt class="col-sm-4">CRL Number:</dt>
+                                <dd class="col-sm-8"><code>{{ crl_data.get('crl_number') }}</code></dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revoked Certificates -->
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-ban me-2"></i>Revoked Certificates ({{ crl_data.get('revoked_certificates', [])|length }})
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if crl_data.get('revoked_certificates') %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">
+                                            <i class="fas fa-hashtag me-1"></i>Serial Number
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-calendar-times me-1"></i>Revocation Date
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>Reason
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for revoked_cert in crl_data.get('revoked_certificates', []) %}
+                                        <tr>
+                                            <td>
+                                                <code class="text-danger">{{ revoked_cert.get('serial_number', 'Unknown') }}</code>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    {% if revoked_cert.get('revocation_date') %}
+                                                        {{ revoked_cert.get('revocation_date', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                                    {% else %}
+                                                        Unknown
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    {{ revoked_cert.get('reason', 'unspecified').replace('_', ' ').title() }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <!-- Empty State -->
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-check-circle fa-4x text-success"></i>
+                            </div>
+                            <h5 class="text-muted mb-3">No Revoked Certificates</h5>
+                            <p class="text-muted mb-4">
+                                This CA has not revoked any certificates yet.
+                                All certificates issued by this CA are currently valid.
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- CRL Status and Actions -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>CRL Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- CRL Statistics -->
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Statistics</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Total Revoked:</strong> {{ crl_data.get('revoked_certificates', [])|length }} certificates</li>
+                            <li><strong>Last Updated:</strong> 
+                                {% if crl_data.get('this_update') %}
+                                    {{ crl_data.get('this_update', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- CRL Validity -->
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Validity</h6>
+                        {% if crl_data.get('signature') %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check me-1"></i>Signed
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Not Signed
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-grid gap-2">
+                        <form method="POST" action="{{ url_for('generate_crl', ca_filename=ca_filename) }}">
+                            <button type="submit" class="btn btn-warning w-100">
+                                <i class="fas fa-sync me-2"></i>Regenerate CRL
+                            </button>
+                        </form>
+                        {% if crl_data.get('revoked_certificates') %}
+                        <a href="{{ url_for('download_crl', ca_filename=ca_filename) }}" class="btn btn-success">
+                            <i class="fas fa-download me-2"></i>Download CRL
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Information Panel -->
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>About CRLs
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        <small>
+                            A Certificate Revocation List (CRL) contains all certificates that have been 
+                            revoked by this Certificate Authority and should no longer be trusted.
+                        </small>
+                    </p>
+                    
+                    <h6 class="text-secondary mb-2">Common Revocation Reasons</h6>
+                    <ul class="list-unstyled">
+                        <li><small><strong>Key Compromise:</strong> Private key exposed</small></li>
+                        <li><small><strong>Superseded:</strong> Certificate replaced</small></li>
+                        <li><small><strong>Cessation:</strong> No longer needed</small></li>
+                        <li><small><strong>Unspecified:</strong> General revocation</small></li>
+                    </ul>
+                    
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <i class="fas fa-info-circle me-1"></i>
+                            CRLs should be updated regularly and distributed to all systems 
+                            that need to verify certificates.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+{% endblock %}

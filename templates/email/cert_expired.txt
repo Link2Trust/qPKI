@@ -1,0 +1,51 @@
+***** CRITICAL SERVICE OUTAGE ALERT *****
+=========================================
+
+💀 CERTIFICATE HAS EXPIRED 💀
+🚨 SERVICE DISRUPTION IN PROGRESS 🚨
+
+Your certificate has EXPIRED and services are likely affected!
+
+This certificate expired {% if days_until_expiry == 0 %}today{% else %}{{ days_until_expiry|abs }} days ago{% endif %} and immediate action is required to restore service availability.
+
+EXPIRED CERTIFICATE INFORMATION
+-------------------------------
+Certificate: {{ certificate_name }}{% if certificate_organization %}
+Organization: {{ certificate_organization }}{% endif %}
+Serial Number: {{ serial_number }}
+Issued By: {{ issuer_name }}
+Expired On: {{ expiry_date[:10] }}
+Status: *** EXPIRED ***
+
+🚨 EMERGENCY ACTIONS REQUIRED NOW
+---------------------------------
+1. 🔥 STOP EVERYTHING - Focus on certificate renewal
+2. 📞 Contact certificate provider IMMEDIATELY - emergency renewal
+3. ⚡ Request expedited processing if available
+4. 🚀 Deploy new certificate ASAP once obtained
+5. 📢 Notify users/customers about service issues
+6. 📊 Monitor service restoration after deployment
+7. 📝 Post-incident review - prevent future occurrences
+
+💥 CURRENT SERVICE IMPACT
+-------------------------
+Your services are experiencing these issues RIGHT NOW:
+- 🚫 Complete service outage: Applications are inaccessible to users
+- 🔒 SSL/TLS failures: All secure connections are rejected
+- ⚠️ Browser warnings: Users see "Your connection is not private" errors
+- 💼 Business disruption: Revenue loss and customer dissatisfaction
+- 📱 Mobile app failures: Apps crash or show connection errors
+- 🔍 SEO impact: Search engines may mark site as unsafe
+- 📧 Email services: Secure email may be disrupted
+
+⏰ DOWNTIME TRACKER
+-------------------
+Service has been down for: {% if days_until_expiry == 0 %}Less than 24 hours{% else %}{{ days_until_expiry|abs }} days{% endif %}
+
+This CRITICAL alert was sent to: {{ certificate_email }}
+Certificate file: {{ certificate_filename }}
+
+---
+*** This is a CRITICAL SERVICE OUTAGE alert from qPKI Certificate Management System ***
+Daily alerts will continue until the certificate is renewed and services are restored.
+If you have renewed this certificate, please update your systems immediately.

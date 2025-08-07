@@ -1,0 +1,45 @@
+***** URGENT CERTIFICATE EXPIRATION ALERT *****
+===============================================
+
+🚨 CRITICAL: {{ days_until_expiry }} DAYS REMAINING 🚨
+
+URGENT ACTION REQUIRED: Your certificate is about to expire!
+
+This is a CRITICAL reminder that your certificate will expire in just {{ days_until_expiry }} days. 
+Immediate action is required to prevent service disruption.
+
+CERTIFICATE INFORMATION
+-----------------------
+Certificate: {{ certificate_name }}{% if certificate_organization %}
+Organization: {{ certificate_organization }}{% endif %}
+Serial Number: {{ serial_number }}
+Issued By: {{ issuer_name }}
+Expires On: {{ expiry_date[:10] }}
+Status: {{ days_until_expiry }} DAYS LEFT
+
+⚡ IMMEDIATE ACTIONS REQUIRED
+-----------------------------
+1. Contact your certificate provider IMMEDIATELY to begin renewal process
+2. Schedule renewal to complete before {{ expiry_date[:10] }}
+3. Test the new certificate in a staging environment first
+4. Plan for deployment with minimal downtime
+5. Notify stakeholders about potential service maintenance
+
+⚠️ CRITICAL IMPACT WARNING
+--------------------------
+If this certificate expires, the following will happen:
+- 🚫 Service outage: Applications will become inaccessible
+- 🔒 Security errors: All SSL/TLS connections will fail
+- 👥 User impact: Customers will see "not secure" warnings
+- 💼 Business impact: Potential revenue loss and reputation damage
+- 📱 Mobile apps: May crash or refuse to connect
+
+TIME REMAINING: {{ days_until_expiry }} days ({{ (days_until_expiry * 24) }} hours)
+
+This CRITICAL notification was sent to: {{ certificate_email }}
+Certificate file: {{ certificate_filename }}
+
+---
+*** This is a CRITICAL automated alert from qPKI Certificate Management System ***
+You will receive daily reminders until this certificate is renewed or expires.
+If you have already renewed this certificate, please update your records.

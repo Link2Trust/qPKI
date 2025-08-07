@@ -71,3 +71,24 @@ htmlcov/
 
 # Documentation builds
 docs/_build/
+
+# Additional cleanup rules
+logs/*.log
+config/*.db
+config/notifications.db
+*.db
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Temporary development files
+temp/
+tmp/
+test_certs/
+
+# IDE specific
+.idea/
+.vscode/
+*.sublime-*
+
+cleanup_for_github.sh

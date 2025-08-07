@@ -1,0 +1,29 @@
+CERTIFICATE EXPIRATION NOTICE - 90 DAYS
+========================================
+
+Hello,
+
+This is an early notification that one of your certificates will expire in approximately 90 days. This gives you plenty of time to plan for renewal.
+
+CERTIFICATE INFORMATION
+-----------------------
+Certificate: {{ certificate_name }}{% if certificate_organization %}
+Organization: {{ certificate_organization }}{% endif %}
+Issued By: {{ issuer_name }}
+Expiry Date: {{ expiry_date[:10] }}
+Time Remaining: {{ days_until_expiry }} days
+
+RECOMMENDED ACTIONS
+------------------
+- Plan renewal process - Start planning the certificate renewal
+- Check renewal requirements - Verify any updated requirements
+- Schedule renewal - Add renewal to your calendar
+- Update documentation - Ensure certificate inventory is current
+
+Next notifications: You will receive additional reminders at 60, 30, 14, 7, and 1 day(s) before expiration.
+
+This notification was sent to: {{ certificate_email }}
+
+---
+This is an automated message from the qPKI Certificate Management System.
+Early notifications help ensure smooth certificate lifecycle management.

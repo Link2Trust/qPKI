@@ -90,9 +90,63 @@
                                        placeholder="e.g., San Francisco">
                             </div>
                             <div class="col-md-4">
-                                <label for="email" class="form-label">Email Address</label>
-                                <input type="email" class="form-control" id="email" name="email"
+                                <label for="email" class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" id="email" name="email" required
                                        placeholder="e.g., user@example.com">
+                                <div class="form-text">Required for expiration notifications</div>
+                            </div>
+                        </div>
+
+                        <!-- Certificate Type Selection -->
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-key me-2"></i>Certificate Type
+                        </h6>
+
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="cert_type" id="cert_type_hybrid" value="hybrid" checked>
+                                    <label class="form-check-label" for="cert_type_hybrid">
+                                        <i class="fas fa-shield-alt text-success me-1"></i><strong>Hybrid (Quantum-Safe)</strong>
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="cert_type" id="cert_type_classic" value="classic">
+                                    <label class="form-check-label" for="cert_type_classic">
+                                        <i class="fas fa-lock text-primary me-1"></i><strong>Classic (RSA/ECC only)</strong>
+                                    </label>
+                                </div>
+                                <div class="form-text mt-2">
+                                    <strong>Hybrid:</strong> Uses both classic and post-quantum algorithms for future security<br>
+                                    <strong>Classic:</strong> Uses only traditional RSA or ECC algorithms for compatibility
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Classic Certificate Algorithm Selection (Hidden by default) -->
+                        <div id="classic_algorithm_section" class="row mb-4" style="display: none;">
+                            <div class="col-md-4">
+                                <label for="classic_algorithm" class="form-label">Algorithm *</label>
+                                <select class="form-select" id="classic_algorithm" name="classic_algorithm">
+                                    <option value="RSA">RSA</option>
+                                    <option value="ECC">ECC (Elliptic Curve)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4" id="rsa_key_size_section">
+                                <label for="classic_rsa_key_size" class="form-label">RSA Key Size</label>
+                                <select class="form-select" id="classic_rsa_key_size" name="classic_rsa_key_size">
+                                    <option value="2048">2048 bits</option>
+                                    <option value="3072">3072 bits</option>
+                                    <option value="4096">4096 bits</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4" id="ecc_curve_section" style="display: none;">
+                                <label for="classic_ecc_curve" class="form-label">ECC Curve</label>
+                                <select class="form-select" id="classic_ecc_curve" name="classic_ecc_curve">
+                                    <option value="secp256r1">P-256 (secp256r1)</option>
+                                    <option value="secp384r1">P-384 (secp384r1)</option>
+                                    <option value="secp521r1">P-521 (secp521r1)</option>
+                                </select>
                             </div>
                         </div>
 
@@ -184,5 +238,64 @@
     document.getElementById('country').addEventListener('input', function() {
         this.value = this.value.toUpperCase();
     });
+
+    // Handle certificate type selection
+    function updateCertificateTypeUI() {
+        const isHybrid = document.getElementById('cert_type_hybrid').checked;
+        const classicSection = document.getElementById('classic_algorithm_section');
+        const infoPanel = document.querySelector('.alert-info');
+        const securityFeatures = document.querySelector('.card-body ul');
+        
+        if (isHybrid) {
+            classicSection.style.display = 'none';
+            infoPanel.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Note:</strong> The certificate will use the same cryptographic algorithms 
+                as the selected Certificate Authority (hybrid quantum-safe).
+            `;
+            securityFeatures.innerHTML = `
+                <li><i class="fas fa-check text-success me-2"></i>Hybrid signatures</li>
+                <li><i class="fas fa-check text-success me-2"></i>CA-signed validity</li>
+                <li><i class="fas fa-check text-success me-2"></i>Quantum-resistant</li>
+            `;
+        } else {
+            classicSection.style.display = 'flex';
+            infoPanel.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Note:</strong> Classic certificate uses only traditional cryptography 
+                (RSA or ECC) for maximum compatibility.
+            `;
+            securityFeatures.innerHTML = `
+                <li><i class="fas fa-check text-primary me-2"></i>Traditional algorithms</li>
+                <li><i class="fas fa-check text-success me-2"></i>CA-signed validity</li>
+                <li><i class="fas fa-check text-warning me-2"></i>Legacy compatibility</li>
+            `;
+        }
+        
+        updateClassicAlgorithmUI();
+    }
+
+    // Handle classic algorithm selection
+    function updateClassicAlgorithmUI() {
+        const algorithm = document.getElementById('classic_algorithm').value;
+        const rsaSection = document.getElementById('rsa_key_size_section');
+        const eccSection = document.getElementById('ecc_curve_section');
+        
+        if (algorithm === 'RSA') {
+            rsaSection.style.display = 'block';
+            eccSection.style.display = 'none';
+        } else {
+            rsaSection.style.display = 'none';
+            eccSection.style.display = 'block';
+        }
+    }
+
+    // Event listeners
+    document.getElementById('cert_type_hybrid').addEventListener('change', updateCertificateTypeUI);
+    document.getElementById('cert_type_classic').addEventListener('change', updateCertificateTypeUI);
+    document.getElementById('classic_algorithm').addEventListener('change', updateClassicAlgorithmUI);
+
+    // Initialize UI
+    updateCertificateTypeUI();
 </script>
 {% endblock %}

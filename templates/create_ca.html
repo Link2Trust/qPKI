@@ -26,6 +26,49 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <!-- CA Type Selection -->
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-sitemap me-2"></i>Certificate Authority Type
+                        </h6>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <label class="form-label">CA Type *</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="ca_type" id="ca_type_root" value="root" checked>
+                                    <label class="form-check-label" for="ca_type_root">
+                                        <strong>Root Certificate Authority</strong><br>
+                                        <small class="text-muted">Self-signed CA that serves as the trust anchor</small>
+                                    </label>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="radio" name="ca_type" id="ca_type_subordinate" value="subordinate">
+                                    <label class="form-check-label" for="ca_type_subordinate">
+                                        <strong>Subordinate Certificate Authority</strong><br>
+                                        <small class="text-muted">CA signed by a parent Root CA for organizational hierarchy</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Parent CA Selection (for subordinate CAs) -->
+                        <div id="parent_ca_section" class="mb-4" style="display: none;">
+                            <label for="parent_ca_filename" class="form-label">Parent Root CA *</label>
+                            <select class="form-select" id="parent_ca_filename" name="parent_ca_filename">
+                                <option value="">Select Parent Root CA...</option>
+                                {% for ca in root_cas %}
+                                    <option value="{{ ca.filename }}">{{ ca.common_name }} ({{ ca.organization }})</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select the Root CA that will sign this subordinate CA</div>
+                            {% if not root_cas %}
+                                <div class="alert alert-warning mt-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    No Root CAs found. You must create a Root CA first before creating subordinate CAs.
+                                </div>
+                            {% endif %}
+                        </div>
+
                         <!-- Certificate Subject Information -->
                         <h6 class="text-primary mb-3">
                             <i class="fas fa-id-card me-2"></i>Certificate Subject Information
@@ -186,8 +229,42 @@
                     <ul class="list-unstyled ms-3">
                         <li><i class="fas fa-check text-success me-2"></i>Hybrid signatures</li>
                         <li><i class="fas fa-check text-success me-2"></i>Quantum-resistant</li>
-                        <li><i class="fas fa-check text-success me-2"></i>Self-signed root CA</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Root & subordinate CAs</li>
                     </ul>
+
+                    <h6><i class="fas fa-sitemap text-info me-2"></i>CA Types</h6>
+                    <div class="accordion accordion-flush" id="caTypeAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="rootCAHeading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#rootCACollapse">
+                                    Root Certificate Authority
+                                </button>
+                            </h2>
+                            <div id="rootCACollapse" class="accordion-collapse collapse" data-bs-parent="#caTypeAccordion">
+                                <div class="accordion-body">
+                                    <small>
+                                        Self-signed CA that serves as the ultimate trust anchor. Use this for 
+                                        the top-level CA in your organization's PKI hierarchy.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="subCAHeading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#subCACollapse">
+                                    Subordinate Certificate Authority
+                                </button>
+                            </h2>
+                            <div id="subCACollapse" class="accordion-collapse collapse" data-bs-parent="#caTypeAccordion">
+                                <div class="accordion-body">
+                                    <small>
+                                        CA signed by a Root CA. Use for departmental or regional CAs to create 
+                                        organizational hierarchy and distribute trust.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <h6 class="mt-3"><i class="fas fa-key text-warning me-2"></i>Algorithm Choices</h6>
                     <div class="accordion accordion-flush" id="algorithmAccordion">
@@ -237,6 +314,26 @@
 
 {% block scripts %}
 <script>
+    // Handle CA type selection visibility
+    function toggleParentCASection() {
+        const caTypeSubordinate = document.getElementById('ca_type_subordinate');
+        const parentCASection = document.getElementById('parent_ca_section');
+        const parentCASelect = document.getElementById('parent_ca_filename');
+        
+        if (caTypeSubordinate.checked) {
+            parentCASection.style.display = 'block';
+            parentCASelect.required = true;
+        } else {
+            parentCASection.style.display = 'none';
+            parentCASelect.required = false;
+            parentCASelect.value = '';
+        }
+    }
+    
+    // Add event listeners for CA type radio buttons
+    document.getElementById('ca_type_root').addEventListener('change', toggleParentCASection);
+    document.getElementById('ca_type_subordinate').addEventListener('change', toggleParentCASection);
+    
     // Handle algorithm-specific parameter visibility
     document.getElementById('classical_algorithm').addEventListener('change', function() {
         const algorithm = this.value;

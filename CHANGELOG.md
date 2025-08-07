@@ -8,6 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Complete Certificate Management System**: Full certificate lifecycle implementation
+  - Certificate creation, viewing, and management through web interface
+  - Certificate type selection (Root CA, Subordinate CA, End-entity)
+  - Certificate status tracking (Valid, Expired, Revoked) with visual indicators
+  - Days-until-expiration monitoring with color-coded urgency levels
+  - Certificate revocation with reason codes
+  - Hierarchical CA structure supporting Root and Subordinate CAs
+
+- **Email Notification System**: Automated certificate expiration monitoring
+  - Configurable notification intervals (90, 60, 30, 14, 7, 1 days before expiry + day of expiry)
+  - Professional HTML and plain text email templates with Jinja2 templating
+  - SMTP integration supporting Gmail, Outlook, and custom email providers
+  - Duplicate notification prevention with SQLite tracking database
+  - Web-based notification configuration and management
+  - Test email functionality and notification history
+  - Manual certificate expiration checks
+  - Automated script for cron-based scheduling
+
+- **Certificate Revocation Lists (CRL)**: Complete CRL support
+  - Certificate revocation with standardized reason codes
+  - CRL generation and maintenance per Certificate Authority
+  - CRL viewing interface with revoked certificate details
+  - CRL download functionality for external use
+  - Integration with certificate status checking
+
+- **Enhanced Web User Interface**: Production-ready Flask application
+  - Modern Bootstrap 5 responsive design with mobile support
+  - Certificate Authority creation and management (Root + Subordinate CAs)
+  - Complete certificate lifecycle management interface
+  - Interactive forms with real-time validation and feedback
+  - Dashboard with comprehensive statistics and system overview
+  - Certificate and CA listing with status indicators
+  - Email notification management interface
+  - CRL management and viewing interfaces
+  - Professional error handling and user feedback
+
 - **ECC Support**: Complete Elliptic Curve Cryptography implementation
   - Support for P-256 (secp256r1), P-384 (secp384r1), P-521 (secp521r1) curves
   - ECDSA signature operations with SHA-256
@@ -19,21 +55,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dynamic algorithm selection based on user preferences
   - Backward compatibility with existing RSA-only implementations
 
-- **Modern Web User Interface**: Complete Flask-based web application
-  - Professional Bootstrap 5 responsive design
-  - Certificate Authority creation and management
-  - Interactive forms with real-time cryptographic parameter selection
-  - Dashboard with system overview and statistics
-  - Download functionality for certificates in JSON format
-  - Modern UX with quantum-themed styling and animations
-
-- **Web UI Templates**: Comprehensive template system
-  - `base.html`: Navigation and layout foundation
-  - `index.html`: Dashboard with system overview
+- **Comprehensive Template System**: Complete web interface templates
+  - `base.html`: Navigation and layout foundation with notification links
+  - `index.html`: Dashboard with system overview and statistics
   - `create_ca.html`: CA creation form with algorithm selection
-  - `list_cas.html`: CA management interface
-  - `create_cert.html`: Certificate creation form (framework)
-  - `list_certs.html`: Certificate listing interface
+  - `list_cas.html`: CA management interface with status indicators
+  - `view_ca.html`: Detailed CA information display
+  - `create_cert.html`: Complete certificate creation form
+  - `list_certs.html`: Certificate listing with status and expiration monitoring
+  - `view_cert.html`: Detailed certificate view with revocation capability
+  - `notifications.html`: Email notification management interface
+  - `view_crl.html`: CRL viewing and management interface
   - `error.html`: Professional error handling pages
 
 - **Enhanced Documentation**:

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URGENT: Certificate Expires in 7 Days</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fafafa;
+        }
+        .email-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 2px solid #f44336;
+        }
+        .header {
+            background-color: #f44336;
+            color: white;
+            padding: 25px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 25px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .alert-icon {
+            font-size: 56px;
+            margin-bottom: 15px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .cert-details {
+            background-color: #ffebee;
+            border-left: 6px solid #f44336;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .urgency-badge {
+            background-color: #f44336;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 2px 5px rgba(244,67,54,0.3);
+        }
+        .action-section {
+            background-color: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .countdown {
+            background-color: #f44336;
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .footer {
+            border-top: 2px solid #f44336;
+            padding-top: 20px;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        .highlight {
+            background-color: #ffcdd2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #c62828;
+        }
+        .warning-box {
+            background-color: #fff8e1;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="alert-icon">🚨</div>
+            <h1>URGENT NOTICE</h1>
+            <p>Certificate expires in 7 days!</p>
+        </div>
+
+        <div class="countdown">
+            {{ days_until_expiry }} DAYS
+        </div>
+
+        <p><strong style="color: #f44336;">URGENT ACTION REQUIRED:</strong> Your certificate is about to expire!</p>
+        
+        <p>This is a critical reminder that your certificate will expire in just <strong>{{ days_until_expiry }} days</strong>. Immediate action is required to prevent service disruption.</p>
+
+        <div class="cert-details">
+            <h3>🔒 Certificate Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0; font-weight: bold;">Certificate:</td>
+                    <td style="padding: 8px 0; color: #f44336; font-weight: bold;">{{ certificate_name }}</td>
+                </tr>
+                {% if certificate_organization %}
+                <tr>
+                    <td style="padding: 8px 0; font-weight: bold;">Organization:</td>
+                    <td style="padding: 8px 0;">{{ certificate_organization }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td style="padding: 8px 0; font-weight: bold;">Serial Number:</td>
+                    <td style="padding: 8px 0;"><code>{{ serial_number[:16] }}...</code></td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; font-weight: bold;">Issued By:</td>
+                    <td style="padding: 8px 0;">{{ issuer_name }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; font-weight: bold;">Expires On:</td>
+                    <td style="padding: 8px 0; color: #f44336; font-weight: bold; font-size: 16px;">{{ expiry_date[:10] }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; font-weight: bold;">Status:</td>
+                    <td style="padding: 8px 0;"><span class="urgency-badge">{{ days_until_expiry }} days left</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="action-section">
+            <h3 style="color: #ff9800;">⚡ IMMEDIATE ACTIONS REQUIRED</h3>
+            <ol>
+                <li><strong>Contact your certificate provider immediately</strong> to begin renewal process</li>
+                <li><strong>Schedule renewal</strong> to complete before {{ expiry_date[:10] }}</li>
+                <li><strong>Test the new certificate</strong> in a staging environment first</li>
+                <li><strong>Plan for deployment</strong> with minimal downtime</li>
+                <li><strong>Notify stakeholders</strong> about potential service maintenance</li>
+            </ol>
+        </div>
+
+        <div class="warning-box">
+            <h3 style="color: #ff6f00;">⚠️ Critical Impact Warning</h3>
+            <p><strong>If this certificate expires, the following will happen:</strong></p>
+            <ul>
+                <li>🚫 <strong>Service outage:</strong> Applications will become inaccessible</li>
+                <li>🔒 <strong>Security errors:</strong> All SSL/TLS connections will fail</li>
+                <li>👥 <strong>User impact:</strong> Customers will see "not secure" warnings</li>
+                <li>💼 <strong>Business impact:</strong> Potential revenue loss and reputation damage</li>
+                <li>📱 <strong>Mobile apps:</strong> May crash or refuse to connect</li>
+            </ul>
+        </div>
+
+        <p style="background-color: #ffebee; padding: 15px; border-radius: 5px; border-left: 4px solid #f44336;">
+            <strong>📧 This critical notification was sent to:</strong> <span class="highlight">{{ certificate_email }}</span><br>
+            <strong>📂 Certificate file:</strong> {{ certificate_filename }}
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <p style="font-size: 18px; color: #f44336; font-weight: bold;">
+                🕐 Time remaining: {{ days_until_expiry }} days, {{ (days_until_expiry * 24) }} hours
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><strong>This is a CRITICAL automated alert from qPKI Certificate Management System.</strong></p>
+            <p>You will receive daily reminders until this certificate is renewed or expires.</p>
+            <p>If you have already renewed this certificate, please update your records.</p>
+        </div>
+    </div>
+</body>
+</html>

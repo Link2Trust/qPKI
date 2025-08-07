@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Details - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-file-contract me-2 text-primary"></i>Certificate Details
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{{ url_for('list_certs') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Certificates
+                </a>
+                <a href="{{ url_for('download_cert', cert_type='certificate', filename=filename) }}" class="btn btn-success">
+                    <i class="fas fa-download me-1"></i>Download
+                </a>
+                {% if not cert_data.get('revoked') %}
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#revokeModal">
+                    <i class="fas fa-ban me-1"></i>Revoke Certificate
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% set certificate = cert_data.get('certificate', cert_data) %}
+    
+    <div class="row">
+        <!-- Certificate Information -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header quantum-gradient text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Certificate Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Subject Information -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-user me-2"></i>Subject Information
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Common Name:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('common_name', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Organization:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('organization', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Org Unit:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('organizational_unit', 'N/A') }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Country:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('country', 'N/A') }}</dd>
+                                <dt class="col-sm-4">State:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('state', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Locality:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('subject', {}).get('locality', 'N/A') }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <!-- Issuer Information -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-certificate me-2"></i>Issuer Information
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Common Name:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('issuer', {}).get('common_name', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Organization:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('issuer', {}).get('organization', 'N/A') }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            {% if cert_data.get('issuer_ca') %}
+                            <dl class="row">
+                                <dt class="col-sm-4">CA File:</dt>
+                                <dd class="col-sm-8">
+                                    <code>{{ cert_data.get('issuer_ca', {}).get('filename', 'N/A') }}</code>
+                                </dd>
+                            </dl>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Certificate Details -->
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-cog me-2"></i>Certificate Details
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Version:</dt>
+                                <dd class="col-sm-8">{{ certificate.get('version', 'N/A') }}</dd>
+                                <dt class="col-sm-4">Serial Number:</dt>
+                                <dd class="col-sm-8"><code>{{ certificate.get('serial_number', 'N/A') }}</code></dd>
+                                <dt class="col-sm-4">Signature Alg:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-info">{{ certificate.get('signature_algorithm', 'N/A') }}</span>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Not Before:</dt>
+                                <dd class="col-sm-8">
+                                    {% if certificate.get('validity', {}).get('not_before') %}
+                                        {{ certificate.get('validity', {}).get('not_before', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </dd>
+                                <dt class="col-sm-4">Not After:</dt>
+                                <dd class="col-sm-8">
+                                    {% if certificate.get('validity', {}).get('not_after') %}
+                                        {{ certificate.get('validity', {}).get('not_after', '').replace('T', ' ').replace('Z', ' UTC') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </dd>
+                                <dt class="col-sm-4">Fingerprint:</dt>
+                                <dd class="col-sm-8"><code class="text-muted">{{ certificate.get('fingerprint', 'N/A')[:20] }}...</code></dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Extensions -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-puzzle-piece me-2"></i>Certificate Extensions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% set extensions = certificate.get('extensions', {}) %}
+                    
+                    <!-- Basic Constraints -->
+                    {% if extensions.get('basic_constraints') %}
+                    <h6 class="text-secondary mb-2">Basic Constraints</h6>
+                    <ul class="list-unstyled ms-3 mb-3">
+                        <li>
+                            <strong>CA:</strong> 
+                            {% if extensions.get('basic_constraints', {}).get('ca') %}
+                                <span class="badge bg-warning">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </li>
+                        {% if extensions.get('basic_constraints', {}).get('path_len_constraint') is not none %}
+                        <li><strong>Path Length:</strong> {{ extensions.get('basic_constraints', {}).get('path_len_constraint', 'Unlimited') }}</li>
+                        {% endif %}
+                    </ul>
+                    {% endif %}
+
+                    <!-- Key Usage -->
+                    {% if extensions.get('key_usage') %}
+                    <h6 class="text-secondary mb-2">Key Usage</h6>
+                    <div class="mb-3">
+                        {% for usage in extensions.get('key_usage', []) %}
+                            <span class="badge bg-primary me-1">{{ usage.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cryptographic Information -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-key me-2"></i>Cryptographic Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% set crypto_info = certificate.get('cryptographic_info', {}) %}
+                    {% set hybrid_info = crypto_info.get('hybrid_key_info', {}) %}
+                    
+                    <h6 class="text-success mb-2">Hybrid Algorithm</h6>
+                    <p class="mb-3">
+                        <span class="badge bg-success">{{ hybrid_info.get('type', 'Unknown') }}</span>
+                    </p>
+
+                    <!-- Classical Algorithm -->
+                    {% set classical = hybrid_info.get('classical_algorithm', {}) %}
+                    <h6 class="text-primary mb-2">Classical Component</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li><strong>Algorithm:</strong> {{ classical.get('algorithm', 'N/A') }}</li>
+                        {% if classical.get('key_size') %}
+                            <li><strong>Key Size:</strong> {{ classical.get('key_size') }} bits</li>
+                        {% endif %}
+                        {% if classical.get('curve') %}
+                            <li><strong>Curve:</strong> {{ classical.get('curve') }}</li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- Post-Quantum Algorithm -->
+                    {% set pq_algo = hybrid_info.get('post_quantum_algorithm', {}) %}
+                    <h6 class="text-warning mb-2">Post-Quantum Component</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li><strong>Algorithm:</strong> {{ pq_algo.get('algorithm', 'N/A') }}</li>
+                        {% if pq_algo.get('variant') %}
+                            <li><strong>Variant:</strong> Dilithium{{ pq_algo.get('variant') }}</li>
+                        {% endif %}
+                        {% if pq_algo.get('security_level') %}
+                            <li><strong>Security Level:</strong> {{ pq_algo.get('security_level') }}</li>
+                        {% endif %}
+                    </ul>
+
+                    <!-- Key Information -->
+                    {% if crypto_info.get('key_lengths') %}
+                    <h6 class="text-info mb-2">Key Lengths</h6>
+                    <ul class="list-unstyled">
+                        {% for key_type, length in crypto_info.get('key_lengths', {}).items() %}
+                            <li><strong>{{ key_type.replace('_', ' ').title() }}:</strong> {{ length }} bytes</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Certificate Validation -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Certificate Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Certificate Status -->
+                    {% set not_after = certificate.get('validity', {}).get('not_after', '') %}
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Status</h6>
+                        {% if status == 'revoked' %}
+                            <span class="badge bg-danger">
+                                <i class="fas fa-times-circle me-1"></i>Revoked
+                            </span>
+                            <small class="text-muted d-block mt-1">
+                                Revoked: {{ cert_data.get('revoked', {}).get('date', '').replace('T', ' ').replace('Z', ' UTC') }}<br>
+                                Reason: {{ cert_data.get('revoked', {}).get('reason', 'unspecified').title() }}
+                            </small>
+                        {% elif status == 'expired' %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-clock me-1"></i>Expired
+                            </span>
+                            <small class="text-muted d-block mt-1">
+                                Expired: {{ not_after.replace('T', ' ').replace('Z', ' UTC') }}
+                            </small>
+                        {% elif status == 'valid' %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Valid
+                            </span>
+                            <small class="text-muted d-block mt-1">
+                                Expires: {{ not_after.replace('T', ' ').replace('Z', ' UTC') }}
+                            </small>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-question-circle me-1"></i>Unknown
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Certificate Type -->
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Certificate Type</h6>
+                        {% if certificate.get('extensions', {}).get('basic_constraints', {}).get('ca') %}
+                            <span class="badge bg-primary">Certificate Authority</span>
+                        {% else %}
+                            <span class="badge bg-secondary">End Entity</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Quantum Safe -->
+                    <div class="mb-3">
+                        <h6 class="text-secondary mb-2">Security</h6>
+                        <span class="badge bg-success">
+                            <i class="fas fa-atom me-1"></i>Quantum Safe
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw Data (Collapsible) -->
+    <div class="card shadow">
+        <div class="card-header" id="rawDataHeader">
+            <h6 class="mb-0">
+                <button class="btn btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#rawDataCollapse" aria-expanded="false">
+                    <i class="fas fa-code me-2"></i>Raw Certificate Data
+                </button>
+            </h6>
+        </div>
+        <div id="rawDataCollapse" class="collapse">
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded"><code>{{ cert_data | tojson(indent=2) }}</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revoke Certificate Modal -->
+    {% if not cert_data.get('revoked') %}
+    <div class="modal fade" id="revokeModal" tabindex="-1" aria-labelledby="revokeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="revokeModalLabel">
+                        <i class="fas fa-ban me-2"></i>Revoke Certificate
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('revoke_certificate', filename=filename) }}">
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> This action cannot be undone. The certificate will be permanently revoked and added to the Certificate Revocation List (CRL).
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Certificate to revoke:</strong></label>
+                            <div class="bg-light p-2 rounded">
+                                <strong>{{ certificate.get('subject', {}).get('common_name', 'Unknown') }}</strong><br>
+                                <small class="text-muted">Serial: {{ certificate.get('serial_number', 'Unknown') }}</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="revocationReason" class="form-label">Revocation Reason:</label>
+                            <select class="form-select" id="revocationReason" name="reason" required>
+                                <option value="">Select a reason...</option>
+                                <option value="unspecified">Unspecified</option>
+                                <option value="key_compromise">Key Compromise</option>
+                                <option value="ca_compromise">CA Compromise</option>
+                                <option value="affiliation_changed">Affiliation Changed</option>
+                                <option value="superseded">Superseded</option>
+                                <option value="cessation_of_operation">Cessation of Operation</option>
+                                <option value="certificate_hold">Certificate Hold</option>
+                            </select>
+                            <div class="form-text">Select the reason for revoking this certificate</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-ban me-1"></i>Revoke Certificate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+{% endblock %}

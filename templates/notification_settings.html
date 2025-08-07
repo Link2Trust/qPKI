@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Email Notification Settings - qPKI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-envelope me-2 text-primary"></i>Email Notification Settings
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('notification_history') }}" class="btn btn-outline-info me-2">
+                <i class="fas fa-history me-1"></i>View History
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- SMTP Configuration -->
+            <div class="card shadow mb-4">
+                <div class="card-header quantum-gradient text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-server me-2"></i>SMTP Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('update_notification_settings') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">System Status</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enabled" name="enabled" 
+                                           {% if config.get('enabled') %}checked{% endif %}>
+                                    <label class="form-check-label" for="enabled">
+                                        Enable Email Notifications
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Testing Mode</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="test_mode" name="test_mode" 
+                                           {% if config.get('test_mode', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="test_mode">
+                                        Test Mode (log only, don't send)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label for="smtp_server" class="form-label">SMTP Server</label>
+                                <input type="text" class="form-control" id="smtp_server" name="smtp_server" 
+                                       value="{{ config.get('smtp_server', 'localhost') }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="smtp_port" class="form-label">Port</label>
+                                <input type="number" class="form-control" id="smtp_port" name="smtp_port" 
+                                       value="{{ config.get('smtp_port', 587) }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="smtp_security" class="form-label">Security</label>
+                                <select class="form-select" id="smtp_security" name="smtp_security">
+                                    <option value="NONE" {% if config.get('smtp_security') == 'NONE' %}selected{% endif %}>None</option>
+                                    <option value="TLS" {% if config.get('smtp_security') == 'TLS' %}selected{% endif %}>TLS (StartTLS)</option>
+                                    <option value="SSL" {% if config.get('smtp_security') == 'SSL' %}selected{% endif %}>SSL</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="smtp_username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="smtp_username" name="smtp_username" 
+                                       value="{{ config.get('smtp_username', '') }}" autocomplete="username">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="smtp_password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="smtp_password" name="smtp_password" 
+                                       value="{{ config.get('smtp_password', '') }}" autocomplete="current-password">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="from_email" class="form-label">From Email</label>
+                                <input type="email" class="form-control" id="from_email" name="from_email" 
+                                       value="{{ config.get('from_email', 'noreply@qpki.local') }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="from_name" class="form-label">From Name</label>
+                                <input type="text" class="form-control" id="from_name" name="from_name" 
+                                       value="{{ config.get('from_name', 'qPKI Notification System') }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="max_retry_attempts" class="form-label">Max Retry Attempts</label>
+                                <input type="number" class="form-control" id="max_retry_attempts" name="max_retry_attempts" 
+                                       value="{{ config.get('max_retry_attempts', 3) }}" min="1" max="10">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="retry_delay_minutes" class="form-label">Retry Delay (minutes)</label>
+                                <input type="number" class="form-control" id="retry_delay_minutes" name="retry_delay_minutes" 
+                                       value="{{ config.get('retry_delay_minutes', 15) }}" min="1" max="1440">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="log_notifications" name="log_notifications" 
+                                           {% if config.get('log_notifications', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="log_notifications">
+                                        Log Notifications
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Notification Intervals -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Notification Intervals
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Configure when to send expiration notifications based on days before certificate expires.</p>
+                    
+                    <form method="POST" action="{{ url_for('update_notification_settings') }}">
+                        <!-- Hidden fields to preserve main settings -->
+                        <input type="hidden" name="enabled" value="{% if config.get('enabled') %}on{% endif %}">
+                        <input type="hidden" name="test_mode" value="{% if config.get('test_mode') %}on{% endif %}">
+                        <input type="hidden" name="smtp_server" value="{{ config.get('smtp_server', 'localhost') }}">
+                        <input type="hidden" name="smtp_port" value="{{ config.get('smtp_port', 587) }}">
+                        <input type="hidden" name="smtp_security" value="{{ config.get('smtp_security', 'TLS') }}">
+                        <input type="hidden" name="smtp_username" value="{{ config.get('smtp_username', '') }}">
+                        <input type="hidden" name="smtp_password" value="{{ config.get('smtp_password', '') }}">
+                        <input type="hidden" name="from_email" value="{{ config.get('from_email', 'noreply@qpki.local') }}">
+                        <input type="hidden" name="from_name" value="{{ config.get('from_name', 'qPKI Notification System') }}">
+                        <input type="hidden" name="log_notifications" value="{% if config.get('log_notifications') %}on{% endif %}">
+                        <input type="hidden" name="max_retry_attempts" value="{{ config.get('max_retry_attempts', 3) }}">
+                        <input type="hidden" name="retry_delay_minutes" value="{{ config.get('retry_delay_minutes', 15) }}">
+                        
+                        {% for interval in config.get('notification_intervals', []) %}
+                        <div class="row mb-3 p-3 border rounded">
+                            <div class="col-md-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           id="interval_{{ interval.name }}" name="interval_{{ interval.name }}" 
+                                           {% if interval.get('enabled', True) %}checked{% endif %}>
+                                    <label class="form-check-label" for="interval_{{ interval.name }}">
+                                        <strong>{{ interval.days_before_expiry }} days</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-10">
+                                <label for="subject_{{ interval.name }}" class="form-label">Email Subject</label>
+                                <input type="text" class="form-control" 
+                                       id="subject_{{ interval.name }}" name="subject_{{ interval.name }}" 
+                                       value="{{ interval.get('subject', '') }}" 
+                                       placeholder="Email subject line">
+                                <div class="form-text">
+                                    <small>
+                                        <span class="badge bg-info me-1">{{ interval.name }}</span>
+                                        Template: {{ interval.get('template', 'default') }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save me-2"></i>Update Intervals
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Panel -->
+        <div class="col-lg-4">
+            <!-- Test Email -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-paper-plane me-2"></i>Test Email
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('test_email_notification') }}">
+                        <div class="mb-3">
+                            <label for="test_email" class="form-label">Test Email Address</label>
+                            <input type="email" class="form-control" id="test_email" name="test_email" 
+                                   placeholder="test@example.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-paper-plane me-2"></i>Send Test
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Manual Check -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-search me-2"></i>Manual Check
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Check all certificates now and send notifications if needed.</p>
+                    <form method="POST" action="{{ url_for('check_notifications_now') }}">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-search me-2"></i>Check Now
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>System Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Email System:</span>
+                        <span class="badge {% if config.get('enabled') %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if config.get('enabled') %}Enabled{% else %}Disabled{% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Test Mode:</span>
+                        <span class="badge {% if config.get('test_mode') %}bg-warning{% else %}bg-success{% endif %}">
+                            {% if config.get('test_mode') %}Active{% else %}Production{% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Active Intervals:</span>
+                        <span class="badge bg-info">
+                            {{ config.get('notification_intervals', [])|selectattr('enabled')|list|length }}/{{ config.get('notification_intervals', [])|length }}
+                        </span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span>SMTP Server:</span>
+                        <code>{{ config.get('smtp_server', 'localhost') }}:{{ config.get('smtp_port', 587) }}</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Show/hide SMTP auth fields based on username
+    document.getElementById('smtp_username').addEventListener('input', function() {
+        const passwordField = document.getElementById('smtp_password');
+        if (this.value.trim() === '') {
+            passwordField.removeAttribute('required');
+        } else {
+            passwordField.setAttribute('required', 'required');
+        }
+    });
+</script>
+{% endblock %}

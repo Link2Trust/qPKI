@@ -1,0 +1,34 @@
+CERTIFICATE EXPIRATION WARNING - 30 DAYS
+=========================================
+
+Hello,
+
+This is an automated reminder that one of your certificates is approaching its expiration date.
+
+CERTIFICATE DETAILS
+-------------------
+Certificate: {{ certificate_name }}{% if certificate_organization %}
+Organization: {{ certificate_organization }}{% endif %}
+Serial Number: {{ serial_number }}
+Issued By: {{ issuer_name }}
+Issue Date: {{ issue_date[:10] }}
+Expiry Date: {{ expiry_date[:10] }}
+Days Remaining: {{ days_until_expiry }} days
+
+ACTION REQUIRED
+---------------
+Please renew this certificate before it expires to avoid service interruption.
+
+Consider setting up automatic renewal if available, or create a calendar reminder to renew this certificate.
+
+What happens if the certificate expires?
+- Services using this certificate may become unavailable
+- SSL/TLS connections will fail
+- Users will see security warnings
+- Mobile apps may stop working
+
+This notification was sent to: {{ certificate_email }}
+
+---
+This is an automated message from the qPKI Certificate Management System.
+You will receive additional reminders as the expiration date approaches.

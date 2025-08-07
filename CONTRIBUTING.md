@@ -112,7 +112,7 @@ python3 test_ecc.py
 
 # Run web application (manual testing)
 python3 app.py
-# Then visit http://localhost:5000
+# Then visit http://localhost:9090
 ```
 
 ### Writing Tests
@@ -140,17 +140,20 @@ python3 app.py
 
 ### High Priority
 
-- **Certificate creation functionality**: Complete the web UI certificate issuance
-- **Certificate validation**: Implement signature verification in web UI
-- **X.509 export**: Add PEM/DER export functionality
-- **Additional post-quantum algorithms**: Implement other NIST candidates
+- **OCSP responder integration**: Online Certificate Status Protocol support
+- **Hardware Security Module (HSM)**: Integration with HSM devices
+- **Additional post-quantum algorithms**: Implement other NIST candidates (SPHINCS+, etc.)
+- **REST API**: Programmatic access to certificate operations
+- **Multi-user authentication**: User management and role-based access
 
 ### Medium Priority
 
 - **Certificate templates**: Pre-configured certificate types
 - **Bulk operations**: Import/export multiple certificates
-- **Certificate lifecycle**: Renewal, revocation, expiration tracking
+- **Automated certificate renewal**: Auto-renewal before expiration
 - **Enhanced CLI**: More comprehensive command-line tools
+- **Performance optimization**: Faster cryptographic operations
+- **Advanced certificate validation**: Path validation and constraint checking
 
 ### Nice to Have
 

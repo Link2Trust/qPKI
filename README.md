@@ -16,6 +16,9 @@ This project is designed for **educational purposes** to demonstrate quantum-saf
 - **Hybrid Certificate Authority (CA)**: Issues certificates with both classical and Dilithium signatures
 - **Flexible Classical Crypto**: Support for both RSA and ECC (P-256, P-384, P-521)
 - **Web Interface**: Modern Flask-based UI for certificate management
+- **Email Notifications**: Automated certificate expiration reminders
+- **Certificate Lifecycle**: Complete certificate and CA lifecycle management
+- **Certificate Revocation**: CRL (Certificate Revocation List) support
 - **Dual Key Generation**: Creates classical and post-quantum key pairs
 - **Certificate Management**: Generate, validate, and manage hybrid certificates
 - **Educational Focus**: Clear code structure with extensive documentation
@@ -106,7 +109,7 @@ For a user-friendly experience, start the web interface:
 python3 app.py
 ```
 
-Then visit `http://localhost:5000` to:
+Then visit `http://localhost:9090` to:
 - Create Certificate Authorities with RSA or ECC + Dilithium
 - Manage certificates through a modern web interface
 - Download certificates in hybrid JSON format

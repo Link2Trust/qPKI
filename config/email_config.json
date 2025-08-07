@@ -1,0 +1,95 @@
+{
+  "enabled": true,
+  "smtp_server": "localhost",
+  "smtp_port": 1025,
+  "smtp_security": "NONE",
+  "smtp_username": "",
+  "smtp_password": "",
+  "from_email": "noreply@your-domain.com",
+  "from_name": "qPKI Notification System",
+  "notification_intervals": [
+    {
+      "name": "90_days_before",
+      "days_before_expiry": 90,
+      "enabled": true,
+      "subject": "Certificate Expiration Notice - 90 Days",
+      "template": "cert_expiry_90days"
+    },
+    {
+      "name": "60_days_before",
+      "days_before_expiry": 60,
+      "enabled": true,
+      "subject": "Certificate Expiration Warning - 60 Days",
+      "template": "cert_expiry_60days"
+    },
+    {
+      "name": "30_days_before",
+      "days_before_expiry": 30,
+      "enabled": true,
+      "subject": "Certificate Expiration Warning - 30 Days",
+      "template": "cert_expiry_30days"
+    },
+    {
+      "name": "14_days_before",
+      "days_before_expiry": 14,
+      "enabled": true,
+      "subject": "Certificate Expiration Alert - 14 Days",
+      "template": "cert_expiry_14days"
+    },
+    {
+      "name": "7_days_before",
+      "days_before_expiry": 7,
+      "enabled": true,
+      "subject": "URGENT: Certificate Expiring in 7 Days",
+      "template": "cert_expiry_7days"
+    },
+    {
+      "name": "1_day_before",
+      "days_before_expiry": 1,
+      "enabled": true,
+      "subject": "CRITICAL: Certificate Expires Tomorrow",
+      "template": "cert_expiry_1day"
+    },
+    {
+      "name": "day_of_expiry",
+      "days_before_expiry": 0,
+      "enabled": true,
+      "subject": "EXPIRED: Certificate Expired Today",
+      "template": "cert_expired"
+    }
+  ],
+  "email_templates": {
+    "cert_expiry_90days": {
+      "html": "templates/email/cert_expiry_90days.html",
+      "text": "templates/email/cert_expiry_90days.txt"
+    },
+    "cert_expiry_60days": {
+      "html": "templates/email/cert_expiry_60days.html",
+      "text": "templates/email/cert_expiry_60days.txt"
+    },
+    "cert_expiry_30days": {
+      "html": "templates/email/cert_expiry_30days.html",
+      "text": "templates/email/cert_expiry_30days.txt"
+    },
+    "cert_expiry_14days": {
+      "html": "templates/email/cert_expiry_14days.html",
+      "text": "templates/email/cert_expiry_14days.txt"
+    },
+    "cert_expiry_7days": {
+      "html": "templates/email/cert_expiry_7days.html",
+      "text": "templates/email/cert_expiry_7days.txt"
+    },
+    "cert_expiry_1day": {
+      "html": "templates/email/cert_expiry_1day.html",
+      "text": "templates/email/cert_expiry_1day.txt"
+    },
+    "cert_expired": {
+      "html": "templates/email/cert_expired.html",
+      "text": "templates/email/cert_expired.txt"
+    }
+  },
+  "test_mode": true,
+  "log_notifications": true,
+  "max_retry_attempts": 3,
+  "retry_delay_minutes": 15
+}

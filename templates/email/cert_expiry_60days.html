@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Expiration Warning - 60 Days</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #ffc107;
+            color: #212529;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            margin: -30px -30px 20px -30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .warning-icon {
+            font-size: 44px;
+            margin-bottom: 10px;
+        }
+        .cert-details {
+            background-color: #fff8d1;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-badge {
+            background-color: #ffc107;
+            color: #212529;
+            padding: 6px 14px;
+            border-radius: 18px;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .action-section {
+            background-color: #e7f3ff;
+            border: 1px solid #0d6efd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="warning-icon">⚠️</div>
+            <h1>Certificate Expiration Warning</h1>
+            <p>Your certificate expires in 60 days</p>
+        </div>
+
+        <p>Hello,</p>
+        
+        <p>This is a <strong>important reminder</strong> that one of your certificates will expire in 60 days. It's time to begin the renewal process.</p>
+
+        <div class="cert-details">
+            <h3>📄 Certificate Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 6px 0; font-weight: bold;">Certificate:</td>
+                    <td style="padding: 6px 0; color: #856404; font-weight: bold;">{{ certificate_name }}</td>
+                </tr>
+                {% if certificate_organization %}
+                <tr>
+                    <td style="padding: 6px 0; font-weight: bold;">Organization:</td>
+                    <td style="padding: 6px 0;">{{ certificate_organization }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td style="padding: 6px 0; font-weight: bold;">Serial Number:</td>
+                    <td style="padding: 6px 0;"><code>{{ serial_number[:16] }}...</code></td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; font-weight: bold;">Issued By:</td>
+                    <td style="padding: 6px 0;">{{ issuer_name }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; font-weight: bold;">Expiry Date:</td>
+                    <td style="padding: 6px 0; color: #ffc107; font-weight: bold; font-size: 15px;">{{ expiry_date[:10] }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; font-weight: bold;">Days Remaining:</td>
+                    <td style="padding: 6px 0;"><span class="warning-badge">{{ days_until_expiry }} days</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="action-section">
+            <h3>🔄 Action Required</h3>
+            <p><strong>Begin certificate renewal process now:</strong></p>
+            <ol>
+                <li><strong>Contact your certificate provider</strong> to start renewal</li>
+                <li><strong>Prepare required documentation</strong> and validation materials</li>
+                <li><strong>Schedule deployment window</strong> for the new certificate</li>
+                <li><strong>Test in staging environment</strong> before production deployment</li>
+                <li><strong>Update monitoring systems</strong> with new expiry date</li>
+            </ol>
+        </div>
+
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p><strong>⏰ Timeline reminder:</strong> You have approximately 8-9 weeks remaining. Most certificate providers recommend starting renewal 30-60 days before expiration.</p>
+        </div>
+
+        <p>This notification was sent to: <span class="highlight">{{ certificate_email }}</span></p>
+
+        <div class="footer">
+            <p>This is an automated message from the qPKI Certificate Management System.</p>
+            <p>You will receive additional reminders at 30, 14, 7, and 1 day(s) before expiration.</p>
+        </div>
+    </div>
+</body>
+</html>
