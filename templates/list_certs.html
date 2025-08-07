@@ -40,7 +40,7 @@
                                     <i class="fas fa-certificate me-1"></i>Issuer
                                 </th>
                                 <th scope="col">
-                                    <i class="fas fa-key me-1"></i>Algorithm
+                                    <i class="fas fa-tasks me-1"></i>Usage
                                 </th>
                                 <th scope="col">
                                     <i class="fas fa-tag me-1"></i>Type
@@ -77,9 +77,13 @@
                                         <span class="text-muted">{{ cert.issuer }}</span>
                                     </td>
                                     <td>
-                                        <span class="badge bg-info algorithm-badge">
-                                            {{ cert.algorithm }}
-                                        </span>
+                                        <div class="key-usage-cell">
+                                            {% for usage in cert.key_usage %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-check me-1"></i>{{ usage.replace('_', ' ').title() }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
                                     </td>
                                     <td>
                                         {% if cert.cert_type == 'Hybrid' %}

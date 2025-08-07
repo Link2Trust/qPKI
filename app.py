@@ -706,12 +706,17 @@ def list_certs():
                     not_after = certificate.get('validity', {}).get('not_after', 'Unknown')
                     days_until_expiry = get_days_until_expiry(not_after) if not_after != 'Unknown' else None
                     
+                    # Get key usage information
+                    key_usage = certificate.get('extensions', {}).get('key_usage', [])
+                    if not key_usage:
+                        key_usage = ['Unknown']
+                    
                     certs.append({
                         'filename': filename,
                         'common_name': certificate.get('subject', {}).get('common_name', 'Unknown'),
                         'organization': certificate.get('subject', {}).get('organization', 'Unknown'),
                         'issuer': certificate.get('issuer', {}).get('common_name', 'Unknown'),
-                        'algorithm': certificate.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('type', 'Unknown'),
+                        'key_usage': key_usage,
                         'cert_type': cert_type,
                         'created': certificate.get('validity', {}).get('not_before', 'Unknown'),
                         'expires': not_after,
