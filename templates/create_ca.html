@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Create Certificate Authority - qPKI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-certificate me-2 text-primary"></i>Create Certificate Authority
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('list_cas') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-list me-1"></i>View Existing CAs
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header quantum-gradient text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus me-2"></i>New Certificate Authority
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Certificate Subject Information -->
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-id-card me-2"></i>Certificate Subject Information
+                        </h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="common_name" class="form-label">Common Name (CN) *</label>
+                                <input type="text" class="form-control" id="common_name" name="common_name" required
+                                       placeholder="e.g., MyCompany Root CA">
+                                <div class="form-text">The name that identifies this CA</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="organization" class="form-label">Organization (O) *</label>
+                                <input type="text" class="form-control" id="organization" name="organization" required
+                                       placeholder="e.g., MyCompany Inc">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="organizational_unit" class="form-label">Organizational Unit (OU)</label>
+                                <input type="text" class="form-control" id="organizational_unit" name="organizational_unit"
+                                       placeholder="e.g., IT Department">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="country" class="form-label">Country (C) *</label>
+                                <input type="text" class="form-control" id="country" name="country" 
+                                       maxlength="2" minlength="2" required
+                                       placeholder="e.g., US" style="text-transform: uppercase;">
+                                <div class="form-text">2-letter country code</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="state" class="form-label">State/Province</label>
+                                <input type="text" class="form-control" id="state" name="state"
+                                       placeholder="e.g., California">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="locality" class="form-label">Locality/City</label>
+                                <input type="text" class="form-control" id="locality" name="locality"
+                                       placeholder="e.g., San Francisco">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email"
+                                       placeholder="e.g., admin@mycompany.com">
+                            </div>
+                        </div>
+
+                        <!-- Cryptographic Parameters -->
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-key me-2"></i>Cryptographic Parameters
+                        </h6>
+
+                        <!-- Algorithm Selection -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="classical_algorithm" class="form-label">Classical Algorithm *</label>
+                                <select class="form-select" id="classical_algorithm" name="classical_algorithm" required>
+                                    <option value="">Select Algorithm...</option>
+                                    <option value="RSA">RSA</option>
+                                    <option value="ECC">ECC (Elliptic Curve)</option>
+                                </select>
+                                <div class="form-text">Choose the classical cryptographic algorithm</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="dilithium_variant" class="form-label">Dilithium Variant *</label>
+                                <select class="form-select" id="dilithium_variant" name="dilithium_variant" required>
+                                    <option value="">Select Variant...</option>
+                                    {% for variant in dilithium_variants %}
+                                        <option value="{{ variant }}">
+                                            Dilithium{{ variant }} 
+                                            {% if variant == 2 %}(128-bit security){% endif %}
+                                            {% if variant == 3 %}(192-bit security){% endif %}
+                                            {% if variant == 5 %}(256-bit security){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Post-quantum signature algorithm</div>
+                            </div>
+                        </div>
+
+                        <!-- RSA-specific parameters -->
+                        <div id="rsa_params" class="mb-3" style="display: none;">
+                            <label for="rsa_key_size" class="form-label">RSA Key Size</label>
+                            <select class="form-select" id="rsa_key_size" name="rsa_key_size">
+                                {% for size in rsa_key_sizes %}
+                                    <option value="{{ size }}" {% if size == 2048 %}selected{% endif %}>
+                                        {{ size }} bits
+                                        {% if size == 2048 %}(Standard){% endif %}
+                                        {% if size == 3072 %}(High Security){% endif %}
+                                        {% if size == 4096 %}(Maximum Security){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Larger keys provide better security but slower performance</div>
+                        </div>
+
+                        <!-- ECC-specific parameters -->
+                        <div id="ecc_params" class="mb-3" style="display: none;">
+                            <label for="ecc_curve" class="form-label">ECC Curve</label>
+                            <select class="form-select" id="ecc_curve" name="ecc_curve">
+                                {% for curve_name, curve_info in ecc_curves.items() %}
+                                    <option value="{{ curve_name }}" {% if curve_name == 'secp256r1' %}selected{% endif %}>
+                                        {{ curve_info.name }} - {{ curve_info.security_level }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">ECC curves provide equivalent security with smaller key sizes</div>
+                        </div>
+
+                        <!-- Validity Period -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="validity_years" class="form-label">Validity Period *</label>
+                                <select class="form-select" id="validity_years" name="validity_years" required>
+                                    <option value="5">5 years</option>
+                                    <option value="10" selected>10 years</option>
+                                    <option value="15">15 years</option>
+                                    <option value="20">20 years</option>
+                                </select>
+                                <div class="form-text">How long this CA certificate should be valid</div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Create Certificate Authority
+                            </button>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Information Panel -->
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Certificate Authority Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        A Certificate Authority (CA) is the root of trust in your PKI. It will be used to 
+                        sign and issue certificates for your organization.
+                    </p>
+                    
+                    <h6><i class="fas fa-shield-alt text-primary me-2"></i>Security Features</h6>
+                    <ul class="list-unstyled ms-3">
+                        <li><i class="fas fa-check text-success me-2"></i>Hybrid signatures</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Quantum-resistant</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Self-signed root CA</li>
+                    </ul>
+
+                    <h6 class="mt-3"><i class="fas fa-key text-warning me-2"></i>Algorithm Choices</h6>
+                    <div class="accordion accordion-flush" id="algorithmAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="rsaHeading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#rsaCollapse">
+                                    RSA Algorithm
+                                </button>
+                            </h2>
+                            <div id="rsaCollapse" class="accordion-collapse collapse" data-bs-parent="#algorithmAccordion">
+                                <div class="accordion-body">
+                                    <small>
+                                        Traditional public key algorithm. Well-tested and widely supported.
+                                        Larger key sizes for equivalent security compared to ECC.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="eccHeading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#eccCollapse">
+                                    ECC Algorithm
+                                </button>
+                            </h2>
+                            <div id="eccCollapse" class="accordion-collapse collapse" data-bs-parent="#algorithmAccordion">
+                                <div class="accordion-body">
+                                    <small>
+                                        Modern algorithm with smaller key sizes and faster operations.
+                                        Provides equivalent security to RSA with better performance.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Important:</strong> CA certificates cannot be changed after creation. 
+                Choose your parameters carefully.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Handle algorithm-specific parameter visibility
+    document.getElementById('classical_algorithm').addEventListener('change', function() {
+        const algorithm = this.value;
+        const rsaParams = document.getElementById('rsa_params');
+        const eccParams = document.getElementById('ecc_params');
+        
+        if (algorithm === 'RSA') {
+            rsaParams.style.display = 'block';
+            eccParams.style.display = 'none';
+        } else if (algorithm === 'ECC') {
+            rsaParams.style.display = 'none';
+            eccParams.style.display = 'block';
+        } else {
+            rsaParams.style.display = 'none';
+            eccParams.style.display = 'none';
+        }
+    });
+
+    // Auto-uppercase country code
+    document.getElementById('country').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+
+    // Form validation feedback
+    (function() {
+        'use strict';
+        window.addEventListener('load', function() {
+            var forms = document.getElementsByClassName('needs-validation');
+            var validation = Array.prototype.filter.call(forms, function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (form.checkValidity() === false) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        }, false);
+    })();
+</script>
+{% endblock %}

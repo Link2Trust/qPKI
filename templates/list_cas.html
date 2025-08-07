@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Authorities - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-certificate me-2 text-primary"></i>Certificate Authorities
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{{ url_for('create_ca_form') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Create New CA
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if cas %}
+        <div class="card shadow">
+            <div class="card-header quantum-gradient text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Certificate Authorities ({{ cas|length }})
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">
+                                    <i class="fas fa-id-card me-1"></i>Common Name
+                                </th>
+                                <th scope="col">
+                                    <i class="fas fa-building me-1"></i>Organization
+                                </th>
+                                <th scope="col">
+                                    <i class="fas fa-key me-1"></i>Algorithm
+                                </th>
+                                <th scope="col">
+                                    <i class="fas fa-calendar-plus me-1"></i>Created
+                                </th>
+                                <th scope="col">
+                                    <i class="fas fa-calendar-times me-1"></i>Expires
+                                </th>
+                                <th scope="col" class="text-center">
+                                    <i class="fas fa-cogs me-1"></i>Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ca in cas %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-certificate text-primary me-2"></i>
+                                            <div>
+                                                <strong>{{ ca.common_name }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ ca.organization }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info algorithm-badge">
+                                            {{ ca.algorithm }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {% if ca.created != 'Unknown' %}
+                                                {{ ca.created[:10] }}
+                                            {% else %}
+                                                Unknown
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="{% if 'expired' in ca.expires.lower() %}cert-expired{% else %}cert-valid{% endif %}">
+                                            {% if ca.expires != 'Unknown' %}
+                                                {{ ca.expires[:10] }}
+                                            {% else %}
+                                                Unknown
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('view_ca', filename=ca.filename) }}" 
+                                               class="btn btn-outline-info btn-sm"
+                                               data-bs-toggle="tooltip" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('download_cert', cert_type='ca', filename=ca.filename) }}" 
+                                               class="btn btn-outline-success btn-sm"
+                                               data-bs-toggle="tooltip" title="Download Certificate">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <div class="mb-4">
+                <i class="fas fa-certificate fa-4x text-muted"></i>
+            </div>
+            <h4 class="text-muted mb-3">No Certificate Authorities Found</h4>
+            <p class="text-muted mb-4">
+                Get started by creating your first Certificate Authority. 
+                A CA is required to issue certificates for your organization.
+            </p>
+            <a href="{{ url_for('create_ca_form') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>Create Your First CA
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Information Panel -->
+    {% if cas %}
+        <div class="row mt-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Certificate Authority Management
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <i class="fas fa-shield-alt text-success me-2"></i>
+                            All CAs use hybrid quantum-safe signatures
+                        </p>
+                        <p class="mb-2">
+                            <i class="fas fa-key text-info me-2"></i>
+                            Support for both RSA and ECC classical algorithms
+                        </p>
+                        <p class="mb-0">
+                            <i class="fas fa-atom text-warning me-2"></i>
+                            Combined with Dilithium post-quantum signatures
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-tasks me-2"></i>Quick Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('create_ca_form') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-plus me-2"></i>Create New CA
+                            </a>
+                            <a href="{{ url_for('create_cert_form') }}" class="btn btn-outline-success">
+                                <i class="fas fa-file-contract me-2"></i>Issue Certificate
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

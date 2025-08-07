@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-tachometer-alt me-2 text-primary"></i>qPKI Dashboard
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{{ url_for('create_ca_form') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>New CA
+                </a>
+                <a href="{{ url_for('create_cert_form') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i>New Certificate
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Overview -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Certificate Authorities
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ ca_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-certificate fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Certificates Issued
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ cert_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-contract fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Security Level
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">Quantum-Safe</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shield-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Hybrid Algorithms
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">RSA/ECC + Dilithium</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-atom fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Welcome Information -->
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 quantum-gradient text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-info-circle me-2"></i>Welcome to qPKI
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h5>Quantum-Safe Public Key Infrastructure</h5>
+                    <p class="mb-3">
+                        qPKI provides a comprehensive solution for managing hybrid certificates that combine 
+                        classical cryptography (RSA or ECC) with post-quantum cryptography (Dilithium). 
+                        This approach ensures your certificates remain secure even against quantum computer attacks.
+                    </p>
+                    
+                    <h6><i class="fas fa-key me-2 text-primary"></i>Supported Algorithms</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Classical Algorithms:</h6>
+                            <ul class="list-unstyled ms-3">
+                                <li><i class="fas fa-check text-success me-2"></i>RSA (2048, 3072, 4096 bits)</li>
+                                <li><i class="fas fa-check text-success me-2"></i>ECC (P-256, P-384, P-521)</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Post-Quantum Algorithms:</h6>
+                            <ul class="list-unstyled ms-3">
+                                <li><i class="fas fa-check text-success me-2"></i>Dilithium2 (128-bit security)</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Dilithium3 (192-bit security)</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Dilithium5 (256-bit security)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('create_ca_form') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create Your First CA
+                        </a>
+                        <a href="{{ url_for('list_cas') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-1"></i>View Existing CAs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 bg-success text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-rocket me-2"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('create_ca_form') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-certificate text-primary me-2"></i>
+                            Create Certificate Authority
+                        </a>
+                        <a href="{{ url_for('create_cert_form') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-file-contract text-success me-2"></i>
+                            Issue New Certificate
+                        </a>
+                        <a href="{{ url_for('list_cas') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-list text-info me-2"></i>
+                            Manage CAs
+                        </a>
+                        <a href="{{ url_for('list_certs') }}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-search text-warning me-2"></i>
+                            View Certificates
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mt-4">
+                <div class="card-header py-3 bg-info text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-shield-alt me-2"></i>Security Features
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Hybrid Signatures:</strong> Classical + Post-Quantum
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Future-Proof:</strong> Quantum computer resistant
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Backward Compatible:</strong> Works with existing tools
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <strong>Flexible:</strong> RSA or ECC classical algorithms
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df!important;
+    }
+    .border-left-success {
+        border-left: 0.25rem solid #1cc88a!important;
+    }
+    .border-left-info {
+        border-left: 0.25rem solid #36b9cc!important;
+    }
+    .border-left-warning {
+        border-left: 0.25rem solid #f6c23e!important;
+    }
+    .text-xs {
+        font-size: .7rem;
+    }
+    .shadow {
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15)!important;
+    }
+</style>
+{% endblock %}
