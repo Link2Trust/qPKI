@@ -663,8 +663,10 @@ def create_cert():
             }
         }
         
-        # Generate filename based on certificate common name
-        cert_filename = f"cert_{cert_data['common_name'].lower().replace(' ', '_').replace('.', '_')}.json"
+        # Generate filename based on certificate common name and timestamp (allows duplicates)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        safe_common_name = cert_data['common_name'].lower().replace(' ', '_').replace('.', '_')
+        cert_filename = f"cert_{safe_common_name}_{timestamp}.json"
         cert_filepath = os.path.join(CERT_STORAGE_DIR, cert_filename)
         
         # Save certificate
