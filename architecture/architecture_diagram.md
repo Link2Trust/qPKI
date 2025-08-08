@@ -8,86 +8,86 @@ The qPKI (Quantum-Safe Public Key Infrastructure) application is a hybrid PKI sy
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                               qPKI System                                       │
-│                         Quantum-Safe PKI Solution                              │
+│                         Quantum-Safe PKI Solution                               │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              User Interfaces                                   │
+│                              User Interfaces                                    │
 ├─────────────────────────────┬───────────────────────────────────────────────────┤
-│       Web Interface         │              Command Line Interface              │
-│    (Flask Application)      │                   (CLI Tool)                     │
+│       Web Interface         │              Command Line Interface               │
+│    (Flask Application)      │                   (CLI Tool)                      │
 │                             │                                                   │
-│  • Bootstrap Frontend       │  • Click-based CLI                              │
-│  • HTML Templates           │  • Colorama for colored output                  │
-│  • REST API Endpoints       │  • Tabulate for formatted tables               │
-│  • Dashboard & Management   │  • Interactive CA/Cert operations              │
+│  • Bootstrap Frontend       │  • Click-based CLI                                │
+│  • HTML Templates           │  • Colorama for colored output                    │
+│  • REST API Endpoints       │  • Tabulate for formatted tables                  │
+│  • Dashboard & Management   │  • Interactive CA/Cert operations                 │
 └─────────────────────────────┴───────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           Application Layer (app.py)                           │
+│                           Application Layer (app.py)                            │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│  • Flask Routes & Request Handling                                             │
-│  • Certificate & CA Management Logic                                           │
-│  • API Endpoints (/api/*)                                                      │
-│  • Template Rendering & Form Processing                                        │
-│  • Error Handling & Flash Messages                                             │
+│  • Flask Routes & Request Handling                                              │
+│  • Certificate & CA Management Logic                                            │
+│  • API Endpoints (/api/*)                                                       │
+│  • Template Rendering & Form Processing                                         │
+│  • Error Handling & Flash Messages                                              │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              Core Services                                     │
+│                              Core Services                                      │
 ├───────────────────┬─────────────────────┬───────────────────────────────────────┤
-│   Hybrid CA       │   Key Manager       │   Email Notification Service         │
-│   (hybrid_ca.py)  │   (key_manager.py)  │   (email_notifier.py)               │
+│   Hybrid CA       │   Key Manager       │   Email Notification Service          │
+│   (hybrid_ca.py)  │   (key_manager.py)  │   (email_notifier.py)                 │
 │                   │                     │                                       │
-│ • CA Operations   │ • Key Pair Gen      │ • Expiration Monitoring              │
-│ • Cert Issuance   │ • Key Storage       │ • SMTP Email Delivery                │
-│ • Cert Validation │ • Key Retrieval     │ • Template Rendering                 │
-│ • CRL Management  │ • Key Lifecycle     │ • Notification History               │
-│ • Serial Numbers  │ • Metadata Mgmt     │ • SQLite Tracking                    │
+│ • CA Operations   │ • Key Pair Gen      │ • Expiration Monitoring               │
+│ • Cert Issuance   │ • Key Storage       │ • SMTP Email Delivery                 │
+│ • Cert Validation │ • Key Retrieval     │ • Template Rendering                  │
+│ • CRL Management  │ • Key Lifecycle     │ • Notification History                │
+│ • Serial Numbers  │ • Metadata Mgmt     │ • SQLite Tracking                     │
 └───────────────────┴─────────────────────┴───────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           Cryptographic Layer                                  │
+│                           Cryptographic Layer                                   │
 ├──────────────────┬─────────────────┬─────────────────┬──────────────────────────┤
 │  Hybrid Crypto   │   RSA Crypto    │   ECC Crypto    │   Dilithium Crypto       │
 │  (hybrid_crypto  │   (rsa_crypto   │   (ecc_crypto   │   (dilithium_crypto      │
 │   .py)           │   .py)          │   .py)          │   .py)                   │
 │                  │                 │                 │                          │
-│ • Dual Signing   │ • RSA Key Ops   │ • ECC Key Ops   │ • Post-Quantum Sigs     │
-│ • Hybrid Keys    │ • PKCS#1/OAEP   │ • P-256/384/521 │ • Dilithium2/3/5        │
-│ • Signature      │ • SHA-256 Hash  │ • ECDSA Signing │ • NIST Submission       │
-│   Verification   │ • PEM/DER       │ • SEC1 Format   │ • Pure Python Impl      │
-│ • Key Mgmt       │   Support       │ • Curve Params  │ • Stateless Signatures  │
+│ • Dual Signing   │ • RSA Key Ops   │ • ECC Key Ops   │ • Post-Quantum Sigs      │
+│ • Hybrid Keys    │ • PKCS#1/OAEP   │ • P-256/384/521 │ • Dilithium2/3/5         │
+│ • Signature      │ • SHA-256 Hash  │ • ECDSA Signing │ • NIST Submission        │
+│   Verification   │ • PEM/DER       │ • SEC1 Format   │ • Pure Python Impl       │
+│ • Key Mgmt       │   Support       │ • Curve Params  │ • Stateless Signatures   │
 └──────────────────┴─────────────────┴─────────────────┴──────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           Utility Services                                     │
+│                           Utility Services                                      │
 ├─────────────────────────────────────┬───────────────────────────────────────────┤
-│       Certificate Formats           │            File System Storage           │
-│       (cert_formats.py)             │               (JSON Files)               │
+│       Certificate Formats           │            File System Storage            │
+│       (cert_formats.py)             │               (JSON Files)                │
 │                                     │                                           │
-│ • Hybrid → Standard X.509 Export    │ • CA Certificates (/ca/*.json)          │
-│ • PEM/DER Format Conversion         │ • End Entity Certs (/certificates/)     │
-│ • Legacy PKI Compatibility         │ • Certificate Revocation Lists (/crl/)  │
-│ • Format Validation                 │ • Private Keys (Encrypted Storage)       │
-│ • Metadata Extraction              │ • Public Key Repository                  │
+│ • Hybrid → Standard X.509 Export    │ • CA Certificates (/ca/*.json)            │ 
+│ • PEM/DER Format Conversion         │ • End Entity Certs (/certificates/)       │
+│ • Legacy PKI Compatibility          │ • Certificate Revocation Lists (/crl/)    │
+│ • Format Validation                 │ • Private Keys (Encrypted Storage)        │
+│ • Metadata Extraction               │ • Public Key Repository                   │
 └─────────────────────────────────────┴───────────────────────────────────────────┘
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              Data Layer                                        │
+│                              Data Layer                                         │
 ├─────────────────┬─────────────────┬─────────────────┬───────────────────────────┤
-│  JSON Storage   │  SQLite Database │  Configuration  │    Template System        │
-│                 │                  │    Files        │                           │
-│ • Certificates  │ • Notification   │ • email_config  │ • Jinja2 Templates       │
-│ • CA Metadata   │   History        │   .json         │ • Email Templates        │
-│ • Public Keys   │ • Sent Emails    │ • App Config    │   (HTML/Plain Text)      │
-│ • Private Keys  │   Tracking       │ • Logging       │ • Web UI Templates       │
-│ • CRLs          │ • Email Queue    │   Config        │ • Form Templates         │
+│  JSON Storage   │  SQLite Database│  Configuration  │    Template System        │
+│                 │                 │    Files        │                           │
+│ • Certificates  │ • Notification  │ • email_config  │ • Jinja2 Templates        │
+│ • CA Metadata   │   History       │   .json         │ • Email Templates         │
+│ • Public Keys   │ • Sent Emails   │ • App Config    │   (HTML/Plain Text)       │
+│ • Private Keys  │   Tracking      │ • Logging       │ • Web UI Templates        │
+│ • CRLs          │ • Email Queue   │   Config        │ • Form Templates          │
 └─────────────────┴─────────────────┴─────────────────┴───────────────────────────┘
 ```
 
