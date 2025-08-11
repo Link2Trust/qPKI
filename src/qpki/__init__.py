@@ -9,13 +9,14 @@ __version__ = "0.1.0"
 __author__ = "Link2Trust"
 __email__ = "info@link2trust.com"
 
-from .ca.hybrid_ca import HybridCA
-from .keys.key_manager import KeyManager
-from .crypto.hybrid_crypto import HybridCrypto
+from .crypto.hybrid_crypto import HybridCrypto, FlexibleHybridCrypto
+from .crypto import RSACrypto, ECCCrypto, DilithiumCrypto
 
 __all__ = [
-    "HybridCA",
-    "KeyManager", 
     "HybridCrypto",
+    "FlexibleHybridCrypto",
+    "RSACrypto",
+    "ECCCrypto", 
+    "DilithiumCrypto",
     "__version__",
 ]

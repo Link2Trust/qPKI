@@ -12,7 +12,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from typing import Dict, Any, Optional, List
 
@@ -292,12 +292,12 @@ class Certificate(Base):
     @property
     def is_expired(self) -> bool:
         """Check if certificate is expired."""
-        return datetime.utcnow() > self.not_after
+        return datetime.now(timezone.utc) > self.not_after
     
     @property
     def days_until_expiry(self) -> int:
         """Get days until certificate expires."""
-        delta = self.not_after - datetime.utcnow()
+        delta = self.not_after - datetime.now(timezone.utc)
         return delta.days
 
 

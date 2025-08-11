@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  qpki:
+    build: .
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./certificates:/app/certificates
+      - ./ca:/app/ca
+      - ./crl:/app/crl
+      - ./logs:/app/logs
+      - ./config:/app/config
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PYTHONPATH=/app/src
+    depends_on:
+      - mailhog
+    networks:
+      - qpki-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"    # SMTP port
+      - "8025:8025"    # Web UI port
+    networks:
+      - qpki-network
+
+  # Optional: PostgreSQL for production-like database testing
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: qpki
+      POSTGRES_USER: qpki
+      POSTGRES_PASSWORD: qpki_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - qpki-network
+    profiles:
+      - database
+
+networks:
+  qpki-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+# Usage:
+# docker-compose up -d                    # Start qPKI with MailHog
+# docker-compose --profile database up -d # Start with PostgreSQL too
+# docker-compose down                     # Stop all services

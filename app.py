@@ -249,8 +249,8 @@ def add_certificate_to_crl(ca_filename, cert_serial, revocation_reason='unspecif
         crl_data = {
             "version": "v2",
             "issuer_ca": ca_filename,
-            "this_update": datetime.utcnow().isoformat() + "Z",
-            "next_update": (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z",
+            "this_update": datetime.now(timezone.utc).isoformat() + "Z",
+            "next_update": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() + "Z",
             "revoked_certificates": []
         }
     
@@ -260,14 +260,14 @@ def add_certificate_to_crl(ca_filename, cert_serial, revocation_reason='unspecif
             return False  # Already revoked
     
     # Add certificate to CRL
-    revoked_entry = {
+        revoked_entry = {
         "serial_number": cert_serial,
-        "revocation_date": datetime.utcnow().isoformat() + "Z",
+        "revocation_date": datetime.now(timezone.utc).isoformat() + "Z",
         "reason": revocation_reason
     }
     
     crl_data["revoked_certificates"].append(revoked_entry)
-    crl_data["this_update"] = datetime.utcnow().isoformat() + "Z"
+    crl_data["this_update"] = datetime.now(timezone.utc).isoformat() + "Z"
     
     # Save updated CRL
     save_crl_for_ca(ca_filename, crl_data)
@@ -340,7 +340,7 @@ def create_ca():
         ca_keys = hybrid_crypto.generate_hybrid_key_pair()
         
         # Create CA certificate data
-        not_before = datetime.utcnow()
+        not_before = datetime.now(timezone.utc)
         not_after = not_before + timedelta(days=validity_years * 365)
         
         # Set path length constraint based on CA type
@@ -593,7 +593,7 @@ def create_cert():
             algorithm_info = crypto_instance.get_hybrid_key_info(cert_keys)
         
         # Create certificate data
-        not_before = datetime.utcnow()
+        not_before = datetime.now(timezone.utc)
         not_after = not_before + timedelta(days=validity_days)
         
         cert_data_obj = {
@@ -671,7 +671,7 @@ def create_cert():
         }
         
         # Generate filename based on certificate common name and timestamp (allows duplicates)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         safe_common_name = cert_data['common_name'].lower().replace(' ', '_').replace('.', '_')
         cert_filename = f"cert_{safe_common_name}_{timestamp}.json"
         cert_filepath = os.path.join(CERT_STORAGE_DIR, cert_filename)
@@ -800,7 +800,7 @@ def revoke_certificate(filename):
         if success:
             # Mark certificate as revoked
             cert_data['revoked'] = {
-                'date': datetime.utcnow().isoformat() + "Z",
+                'date': datetime.now(timezone.utc).isoformat() + "Z",
                 'reason': revocation_reason
             }
             
@@ -829,8 +829,8 @@ def view_crl(ca_filename):
             crl_data = {
                 "version": "v2",
                 "issuer_ca": ca_filename,
-                "this_update": datetime.utcnow().isoformat() + "Z",
-                "next_update": (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z",
+                "this_update": datetime.now(timezone.utc).isoformat() + "Z",
+                "next_update": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() + "Z",
                 "revoked_certificates": []
             }
         
@@ -861,9 +861,9 @@ def generate_crl(ca_filename):
             "version": "v2",
             "issuer_ca": ca_filename,
             "issuer": ca_data.get('certificate', ca_data).get('subject', {}),
-            "this_update": datetime.utcnow().isoformat() + "Z",
-            "next_update": (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z",
-            "crl_number": str(int(datetime.utcnow().timestamp())),
+            "this_update": datetime.now(timezone.utc).isoformat() + "Z",
+            "next_update": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() + "Z",
+            "crl_number": str(int(datetime.now(timezone.utc).timestamp())),
             "revoked_certificates": []
         }
         

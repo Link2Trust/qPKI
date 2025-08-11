@@ -131,7 +131,7 @@ class EmailNotificationService:
                 (certificate_serial, notification_type, email_address, sent_date, days_before_expiry)
                 VALUES (?, ?, ?, ?, ?)
             ''', (cert_serial, notification_type, email, 
-                  datetime.utcnow().isoformat(), days_before_expiry))
+                  datetime.now(timezone.utc).isoformat(), days_before_expiry))
             
             conn.commit()
         except sqlite3.Error as e:

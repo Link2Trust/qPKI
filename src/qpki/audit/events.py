@@ -8,7 +8,7 @@ RFC 3647 compliant PKI audit logging.
 import enum
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 import json
 
@@ -177,7 +177,7 @@ class AuditEvent:
     # Event identification
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     event_type: AuditEventType = AuditEventType.SYSTEM_ERROR
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Event classification
     severity: AuditSeverity = AuditSeverity.MEDIUM
@@ -261,7 +261,7 @@ class AuditEvent:
         return cls(
             event_id=data.get('event_id', str(uuid.uuid4())),
             event_type=AuditEventType(data.get('event_type', 'system_error')),
-            timestamp=datetime.fromisoformat(data['timestamp']) if 'timestamp' in data else datetime.utcnow(),
+            timestamp=datetime.fromisoformat(data['timestamp']) if 'timestamp' in data else datetime.now(timezone.utc),
             severity=AuditSeverity(data.get('severity', 'medium')),
             outcome=AuditOutcome(data.get('outcome', 'success')),
             category=data.get('category', 'general'),
