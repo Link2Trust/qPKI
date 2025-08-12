@@ -20,9 +20,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'
 
 from qpki.crypto import FlexibleHybridCrypto, ECCCrypto, RSACrypto, DilithiumCrypto
 from qpki.email_notifier import EmailNotificationService
+from qpki.logging_config import setup_logging, get_web_logger, log_activity
 
 app = Flask(__name__)
 app.secret_key = 'qpki-development-key-change-in-production'
+
+# Initialize centralized logging
+setup_logging(log_level="INFO", console_output=True)
+logger = get_web_logger()
 
 # Global configuration
 CERT_STORAGE_DIR = os.path.join(os.path.dirname(__file__), 'certificates')
@@ -33,6 +38,14 @@ CRL_STORAGE_DIR = os.path.join(os.path.dirname(__file__), 'crl')
 os.makedirs(CERT_STORAGE_DIR, exist_ok=True)
 os.makedirs(CA_STORAGE_DIR, exist_ok=True)
 os.makedirs(CRL_STORAGE_DIR, exist_ok=True)
+
+# Log application startup
+log_activity(logger, "web_app_startup", {
+    'description': 'qPKI Web Application starting',
+    'cert_storage': CERT_STORAGE_DIR,
+    'ca_storage': CA_STORAGE_DIR,
+    'crl_storage': CRL_STORAGE_DIR
+})
 
 @app.route('/')
 def index():
@@ -94,18 +107,30 @@ def _get_ca_crypto_info(ca_data):
     classical_info = hybrid_info.get('classical_algorithm', {})
     pq_info = hybrid_info.get('post_quantum_algorithm', {})
     
+    # Extract Dilithium variant - check multiple possible locations
+    dilithium_variant = pq_info.get('variant')
+    if dilithium_variant is None:
+        # Try alternative location or parse from algorithm string
+        algo_str = pq_info.get('algorithm', '')
+        if 'Dilithium3' in algo_str:
+            dilithium_variant = 3
+        elif 'Dilithium5' in algo_str:
+            dilithium_variant = 5
+        else:
+            dilithium_variant = 2  # Default fallback
+    
     # Determine algorithm type
     if 'RSA' in hybrid_info.get('type', ''):
         return {
             'algorithm': 'RSA',
             'rsa_key_size': classical_info.get('key_size', 2048),
-            'dilithium_variant': pq_info.get('variant', 2)
+            'dilithium_variant': dilithium_variant
         }
     else:
         return {
             'algorithm': 'ECC',
             'ecc_curve': classical_info.get('curve', 'secp256r1'),
-            'dilithium_variant': pq_info.get('variant', 2)
+            'dilithium_variant': dilithium_variant
         }
 
 def _create_hybrid_crypto_from_params(algorithm, **params):
@@ -126,19 +151,37 @@ def _create_hybrid_crypto_from_params(algorithm, **params):
 def is_certificate_expired(not_after_str):
     """Check if a certificate is expired."""
     try:
-        not_after = datetime.fromisoformat(not_after_str.replace('Z', '+00:00'))
+        # Handle various date formats with timezone info
+        if not_after_str.endswith('Z'):
+            if '+00:00' in not_after_str:
+                # Remove trailing Z if timezone is already present
+                not_after_str = not_after_str[:-1]
+            else:
+                # Replace Z with +00:00
+                not_after_str = not_after_str.replace('Z', '+00:00')
+        not_after = datetime.fromisoformat(not_after_str)
         return datetime.now(timezone.utc) > not_after
-    except:
+    except Exception as e:
+        print(f"Error parsing date {not_after_str}: {e}")
         return False
 
 def get_days_until_expiry(not_after_str):
     """Calculate days until certificate expiry. Returns negative for expired certificates."""
     try:
-        not_after = datetime.fromisoformat(not_after_str.replace('Z', '+00:00'))
+        # Handle various date formats with timezone info
+        if not_after_str.endswith('Z'):
+            if '+00:00' in not_after_str:
+                # Remove trailing Z if timezone is already present
+                not_after_str = not_after_str[:-1]
+            else:
+                # Replace Z with +00:00
+                not_after_str = not_after_str.replace('Z', '+00:00')
+        not_after = datetime.fromisoformat(not_after_str)
         now = datetime.now(timezone.utc)
         delta = not_after - now
         return delta.days
-    except:
+    except Exception as e:
+        print(f"Error parsing date {not_after_str}: {e}")
         return None
 
 def get_certificate_status(cert_data):
@@ -316,8 +359,16 @@ def create_ca():
             parent_crypto_info = _get_ca_crypto_info(parent_ca_data)
             signing_crypto = _create_hybrid_crypto_from_params(**parent_crypto_info)
             
+            # Check if parent CA has private keys (needed for signing subordinate CA)
+            parent_keys_data = parent_ca_data.get('private_keys')
+            if not parent_keys_data:
+                raise ValueError(
+                    f"Parent CA '{parent_ca_filename}' does not contain private keys. "
+                    "This CA was likely created with an older version that didn't store private keys. "
+                    "Please recreate the parent CA with the current version to enable subordinate CA creation."
+                )
+            
             # Deserialize parent CA keys for signing
-            parent_keys_data = parent_ca_data.get('private_keys', {})
             signing_keys = signing_crypto.deserialize_hybrid_keys(parent_keys_data)
         
         # Algorithm-specific parameters for new CA
@@ -412,6 +463,21 @@ def create_ca():
             json.dump(ca_cert, f, indent=2)
         
         ca_type_str = "Root" if ca_type == 'root' else "Subordinate"
+        
+        # Log CA creation activity
+        log_activity(logger, "ca_created", {
+            'description': f'{ca_type_str} CA created: {ca_data["common_name"]}',
+            'ca_type': ca_type,
+            'common_name': ca_data['common_name'],
+            'organization': ca_data['organization'],
+            'algorithm': classical_algorithm,
+            'dilithium_variant': dilithium_variant,
+            'validity_years': validity_years,
+            'ca_filename': ca_filename,
+            'serial_number': ca_cert_data["serial_number"],
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         flash(f'{ca_type_str} Certificate Authority "{ca_data["common_name"]}" created successfully!', 'success')
         return redirect(url_for('list_cas'))
         
@@ -552,41 +618,13 @@ def create_cert():
                 }
             
             # For classic certificates, we need to adapt to CA signing
-            ca_algorithm_type = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('type', '')
-            if 'RSA' in ca_algorithm_type:
-                ca_rsa_key_size = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('key_size', 2048)
-                ca_crypto = FlexibleHybridCrypto(
-                    classical_algorithm='RSA',
-                    rsa_key_size=ca_rsa_key_size,
-                    dilithium_variant=2
-                )
-            else:
-                ca_ecc_curve = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('curve', 'secp256r1')
-                ca_crypto = FlexibleHybridCrypto(
-                    classical_algorithm='ECC',
-                    ecc_curve=ca_ecc_curve,
-                    dilithium_variant=2
-                )
+            # Use the CA's actual Dilithium variant for proper signing
+            ca_crypto_info = _get_ca_crypto_info(ca_data)
+            ca_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
         else:
-            # Hybrid certificate - use the CA's algorithm settings
-            ca_algorithm_type = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('type', '')
-            
-            if 'RSA' in ca_algorithm_type:
-                # Extract RSA key size from CA data
-                rsa_key_size = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('key_size', 2048)
-                crypto_instance = FlexibleHybridCrypto(
-                    classical_algorithm='RSA',
-                    rsa_key_size=rsa_key_size,
-                    dilithium_variant=2  # Default for certificates
-                )
-            else:  # ECC
-                # Extract ECC curve from CA data
-                ecc_curve = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('curve', 'secp256r1')
-                crypto_instance = FlexibleHybridCrypto(
-                    classical_algorithm='ECC',
-                    ecc_curve=ecc_curve,
-                    dilithium_variant=2  # Default for certificates
-                )
+            # Hybrid certificate - use the CA's algorithm settings with proper Dilithium variant
+            ca_crypto_info = _get_ca_crypto_info(ca_data)
+            crypto_instance = _create_hybrid_crypto_from_params(**ca_crypto_info)
             
             ca_crypto = crypto_instance
             cert_keys = crypto_instance.generate_hybrid_key_pair()
@@ -652,7 +690,15 @@ def create_cert():
             cert_private_keys = crypto_instance.serialize_hybrid_keys(cert_keys)
         
         # Load CA keys for signing
-        ca_keys_data = ca_data.get('private_keys', {})
+        ca_keys_data = ca_data.get('private_keys')
+        
+        if not ca_keys_data:
+            raise ValueError(
+                f"CA file '{ca_filename}' does not contain private keys. "
+                "This CA was likely created with an older version that didn't store private keys. "
+                "Please recreate the CA with the current version to enable certificate signing."
+            )
+        
         ca_keys = ca_crypto.deserialize_hybrid_keys(ca_keys_data)
         
         # Sign the certificate with CA keys (always hybrid signature from CA)
@@ -680,10 +726,36 @@ def create_cert():
         with open(cert_filepath, 'w') as f:
             json.dump(cert_with_keys, f, indent=2)
         
+        # Log certificate creation activity
+        log_activity(logger, "certificate_created", {
+            'description': f'Certificate created for {cert_data["common_name"]}',
+            'common_name': cert_data['common_name'],
+            'organization': cert_data['organization'],
+            'cert_type': cert_type,
+            'key_usage': key_usage,
+            'validity_days': validity_days,
+            'issuer_ca': ca_filename,
+            'cert_filename': cert_filename,
+            'serial_number': cert_data_obj["serial_number"],
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         flash(f'Certificate for "{cert_data["common_name"]}" created successfully!', 'success')
         return redirect(url_for('list_certs'))
         
     except Exception as e:
+        # Log the error with full context
+        logger.error(f"Certificate creation failed: {str(e)}", exc_info=True)
+        
+        log_activity(logger, "certificate_creation_failed", {
+            'description': f'Failed to create certificate for {cert_data.get("common_name", "unknown")}',
+            'error_message': str(e),
+            'error_type': type(e).__name__,
+            'cert_type': cert_type if 'cert_type' in locals() else 'unknown',
+            'ca_filename': ca_filename if 'ca_filename' in locals() else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
+        
         flash(f'Error creating certificate: {str(e)}', 'error')
         traceback.print_exc()
         return redirect(url_for('create_cert_form'))
@@ -896,7 +968,15 @@ def generate_crl(ca_filename):
         hybrid_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
         
         # Load CA keys
-        ca_keys_data = ca_data.get('private_keys', {})
+        ca_keys_data = ca_data.get('private_keys')
+        
+        if not ca_keys_data:
+            raise ValueError(
+                f"CA file '{ca_filename}' does not contain private keys. "
+                "This CA was likely created with an older version that didn't store private keys. "
+                "Please recreate the CA with the current version to enable CRL generation."
+            )
+        
         ca_keys = hybrid_crypto.deserialize_hybrid_keys(ca_keys_data)
         
         # Sign CRL
