@@ -19,6 +19,14 @@ from email import encoders
 from jinja2 import Environment, FileSystemLoader
 import sqlite3
 
+# Import centralized logging
+try:
+    from .logging_config import get_email_logger, log_activity
+except ImportError:
+    # Fallback in case centralized logging is not available
+    get_email_logger = None
+    log_activity = None
+
 class EmailNotificationService:
     """Service for sending certificate expiration notifications."""
     
@@ -131,7 +139,7 @@ class EmailNotificationService:
                 (certificate_serial, notification_type, email_address, sent_date, days_before_expiry)
                 VALUES (?, ?, ?, ?, ?)
             ''', (cert_serial, notification_type, email, 
-                  datetime.utcnow().isoformat(), days_before_expiry))
+                  datetime.now(timezone.utc).isoformat(), days_before_expiry))
             
             conn.commit()
         except sqlite3.Error as e:

@@ -11,3 +11,23 @@ Jinja2>=3.1.2
 itsdangerous>=2.1.2
 MarkupSafe>=2.1.3
 blinker>=1.6.3
+
+# Database support
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.0  # PostgreSQL adapter
+PyMySQL>=1.1.0  # MySQL adapter
+
+# API and documentation
+Flask-RESTful>=0.3.10
+flask-marshmallow>=0.15.0
+marshmallow>=3.20.0
+marshmallow-sqlalchemy>=0.29.0
+flasgger>=0.9.7  # Swagger/OpenAPI support
+
+# OCSP support
+cryptography>=40.0.0  # Already included above
+requests>=2.31.0
+
+# Enhanced logging and monitoring
+flask-limiter>=3.5.0  # Rate limiting
+psutil>=5.9.0  # System monitoring

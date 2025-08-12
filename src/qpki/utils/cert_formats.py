@@ -7,7 +7,7 @@ primary storage for full hybrid information.
 """
 
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 from cryptography.hazmat.primitives import hashes, serialization
@@ -208,7 +208,7 @@ signature has been omitted due to X.509 format limitations.
 For full quantum-resistant verification, use the original JSON format
 certificate with the qPKI validation tools.
 
-Conversion Date: {datetime.utcnow().isoformat()}Z
+Conversion Date: {datetime.now(timezone.utc).isoformat()}Z
 qPKI Version: 0.1.0
 """
     

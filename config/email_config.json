@@ -1,12 +1,16 @@
 {
   "enabled": true,
+  "test_mode": true,
   "smtp_server": "localhost",
   "smtp_port": 1025,
   "smtp_security": "NONE",
   "smtp_username": "",
   "smtp_password": "",
-  "from_email": "noreply@your-domain.com",
+  "from_email": "jocrisem@gmail.com",
   "from_name": "qPKI Notification System",
+  "log_notifications": true,
+  "max_retry_attempts": 3,
+  "retry_delay_minutes": 15,
   "notification_intervals": [
     {
       "name": "90_days_before",
@@ -87,9 +91,5 @@
       "html": "templates/email/cert_expired.html",
       "text": "templates/email/cert_expired.txt"
     }
-  },
-  "test_mode": true,
-  "log_notifications": true,
-  "max_retry_attempts": 3,
-  "retry_delay_minutes": 15
+  }
 }

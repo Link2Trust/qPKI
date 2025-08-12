@@ -92,3 +92,4 @@ test_certs/
 *.sublime-*
 
 cleanup_for_github.sh
+PHASE1_IMPLEMENTATION.md
