@@ -288,11 +288,12 @@ This implementation demonstrates:
 ### Certificate Detail View
 <img width="1721" height="864" alt="image" src="https://github.com/user-attachments/assets/539dfcc2-f6aa-4c5e-99a5-5c4132698a74" />
 
+### Certificate Expiry Notification Mails
+#### Notification for 90 days
+<img width="498" height="822" alt="image" src="https://github.com/user-attachments/assets/4348d56e-9e1e-48c5-90cf-e66978347a35" />
 
-
-
-
-
+#### Notification for 30 days
+<img width="505" height="941" alt="image" src="https://github.com/user-attachments/assets/3f9d1f34-90a6-4df7-8354-e6af77de2005" />
 
 ## 🧪 Testing & Development
 
