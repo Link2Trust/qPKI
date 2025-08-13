@@ -1,8 +1,52 @@
 # qPKI Scripts
 
-This directory contains utility and test scripts for the qPKI system.
+This directory contains utility scripts for managing and testing the qPKI system.
 
-## Scripts Overview
+## Database Management
+
+### `init_database.py`
+Initializes the qPKI database with tables and default users.
+
+```bash
+# Initialize database with default admin user
+python3 scripts/init_database.py
+
+# Initialize with sample users for testing
+python3 scripts/init_database.py --sample-users
+```
+
+**Features:**
+- Creates all required database tables
+- Generates default admin user with secure random password
+- Optionally creates sample users (operator, auditor, viewer)
+- Supports both SQLite and PostgreSQL configurations
+- Provides clear feedback on initialization status
+
+### `reset_password.py`
+Password management utility for user accounts.
+
+```bash
+# List all users
+python3 scripts/reset_password.py --list
+
+# Reset password (auto-generated)
+python3 scripts/reset_password.py --username operator
+
+# Reset with custom password
+python3 scripts/reset_password.py --username operator --password "NewSecurePass123!"
+
+# Force password change on next login
+python3 scripts/reset_password.py --username operator --force-change
+```
+
+**Features:**
+- List all users with their roles and status
+- Reset any user's password with secure random generation
+- Set custom passwords with validation
+- Force password change on next login
+- Secure bcrypt password hashing
+
+## Available Scripts
 
 ### Test Scripts
 

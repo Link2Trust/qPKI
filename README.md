@@ -4,7 +4,7 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-educational-orange)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Version](https://img.shields.io/badge/version-v1.3-blue)
+![Version](https://img.shields.io/badge/version-v1.4-blue)
 
 A **comprehensive hybrid Public Key Infrastructure (PKI)** implementation that combines:
 - **Classical cryptography**: RSA and ECC for traditional compatibility
@@ -34,6 +34,9 @@ This project is designed for **educational purposes** to demonstrate quantum-saf
 
 ### Enterprise Features
 - **Database Integration**: SQLAlchemy ORM with support for SQLite, PostgreSQL, MySQL
+- **User Authentication & Authorization**: Role-based access control (Admin, Operator, Auditor, Viewer)
+- **Session Management**: Secure session handling with automatic cleanup
+- **Password Security**: Bcrypt hashing, expiration policies, and strength validation
 - **Audit Logging**: Comprehensive RFC 3647 compliant audit trail
 - **OCSP Support**: Online Certificate Status Protocol implementation
 - **Email Notifications**: Automated certificate expiration reminders with MailHog testing
@@ -154,6 +157,16 @@ Configure email settings in the web interface or via config file:
 }
 ```
 
+### Database Initialization
+
+```bash
+# Initialize the database and create default admin user
+python3 scripts/init_database.py
+
+# Initialize with sample users (optional)
+python3 scripts/init_database.py --sample-users
+```
+
 ### Basic Usage
 
 ```bash
@@ -216,6 +229,59 @@ Then visit `http://localhost:9090` to access the comprehensive web interface:
 - OCSP responder status
 
 See [README_WEB_UI.md](README_WEB_UI.md) for detailed web interface documentation.
+
+## 🔐 Authentication & User Management
+
+### User Roles & Permissions
+
+qPKI implements a comprehensive role-based access control system:
+
+| Role | Permissions | Description |
+|------|------------|-------------|
+| **Admin** | Full system access | User management, system configuration, all PKI operations |
+| **Operator** | Certificate operations | Create, revoke certificates and CAs, manage CRLs |
+| **Auditor** | Read-only access + audit logs | View certificates, CAs, system logs, compliance reports |
+| **Viewer** | Read-only access | View certificates and CAs only |
+
+### Authentication Features
+
+- **Secure Password Hashing**: Bcrypt with configurable rounds
+- **Password Policies**: Minimum length, complexity requirements, expiration
+- **Session Management**: Secure tokens, automatic timeout, concurrent session control
+- **Account Security**: Login attempt limiting, account lockout protection
+- **Forced Password Changes**: Admin-initiated password resets with mandatory change
+
+### User Management
+
+```bash
+# List all users
+python3 scripts/reset_password.py --list
+
+# Reset user password
+python3 scripts/reset_password.py --username operator --force-change
+
+# Reset with custom password
+python3 scripts/reset_password.py --username operator --password "NewSecurePass123!"
+```
+
+### Web Interface Authentication
+
+- **Login Page**: Clean, responsive design with client-side validation
+- **Profile Management**: Users can update personal information and passwords
+- **Admin Panel**: Complete user lifecycle management (create, edit, disable, delete)
+- **Session Monitoring**: View and manage active user sessions
+- **Security Indicators**: Password strength meter, expiration warnings
+
+### Default Credentials
+
+After database initialization, use the generated admin credentials:
+
+```bash
+# The init script will display:
+# ✅ Default admin created. Username: admin, Password: [random-password]
+```
+
+For security, change the default password immediately after first login.
 
 ## 🔬 Educational Components
 

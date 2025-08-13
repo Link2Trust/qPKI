@@ -78,48 +78,116 @@
             </button>
             
             <div class="collapse navbar-collapse" id="navbarNav">
+                {% if current_user %}
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">
                             <i class="fas fa-home me-1"></i>Dashboard
                         </a>
                     </li>
+                    {% if has_permission(current_user, 'ca.view') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="caDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-certificate me-1"></i>Certificate Authorities
                         </a>
                         <ul class="dropdown-menu">
+                            {% if has_permission(current_user, 'ca.create') %}
                             <li><a class="dropdown-item" href="{{ url_for('create_ca_form') }}">
                                 <i class="fas fa-plus me-2"></i>Create CA
                             </a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('list_cas') }}">
                                 <i class="fas fa-list me-2"></i>List CAs
                             </a></li>
                         </ul>
                     </li>
+                    {% endif %}
+                    {% if has_permission(current_user, 'cert.view') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="certDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-file-contract me-1"></i>Certificates
                         </a>
                         <ul class="dropdown-menu">
+                            {% if has_permission(current_user, 'cert.create') %}
                             <li><a class="dropdown-item" href="{{ url_for('create_cert_form') }}">
                                 <i class="fas fa-plus me-2"></i>Create Certificate
                             </a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('list_certs') }}">
                                 <i class="fas fa-list me-2"></i>List Certificates
                             </a></li>
                         </ul>
                     </li>
+                    {% endif %}
+                    {% if has_permission(current_user, 'notifications.view') %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('notification_settings') }}">
                             <i class="fas fa-envelope me-1"></i>Notifications
                         </a>
                     </li>
+                    {% endif %}
+                    {% if current_user.role == 'admin' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog me-1"></i>Administration
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.list_users') }}">
+                                <i class="fas fa-users me-2"></i>User Management
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.list_sessions') }}">
+                                <i class="fas fa-clock me-2"></i>Active Sessions
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.create_user') }}">
+                                <i class="fas fa-user-plus me-2"></i>Add User
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
                 </ul>
+                {% endif %}
                 
                 <ul class="navbar-nav">
+                    {% if current_user %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>{{ current_user.full_name or current_user.username }}
+                            <span class="badge bg-light text-dark ms-2">{{ current_user.role.title() }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">
+                                <i class="fas fa-user me-1"></i>{{ current_user.full_name or current_user.username }}
+                                <br><small class="text-muted">{{ current_user.email }}</small>
+                            </h6></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                                <i class="fas fa-user-edit me-2"></i>My Profile
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+                                <i class="fas fa-key me-2"></i>Change Password
+                            </a></li>
+                            {% if current_user.get('force_password_change') or current_user.get('is_password_expired') %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><span class="dropdown-item-text text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Password change required
+                            </span></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Sign Out
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% else %}
                     <li class="nav-item">
-                        <span class="navbar-text">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i>Sign In
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <span class="navbar-text ms-3">
                             <i class="fas fa-atom me-1"></i>Quantum-Safe PKI
                         </span>
                     </li>
