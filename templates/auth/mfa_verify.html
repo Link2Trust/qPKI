@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Two-Factor Authentication - qPKI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-mobile-alt fa-3x text-primary mb-3"></i>
+                        <h5>Enter Authentication Code</h5>
+                        <p class="text-muted">
+                            Welcome back, <strong>{{ username }}</strong>!<br>
+                            Please enter the 6-digit code from your authenticator app.
+                        </p>
+                    </div>
+
+                    <form method="POST" autocomplete="off">
+                        <div class="mb-3">
+                            <label for="verification_code" class="form-label">Authentication Code</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg text-center" 
+                                   id="verification_code" 
+                                   name="verification_code" 
+                                   maxlength="8"
+                                   placeholder="000000"
+                                   autocomplete="off"
+                                   inputmode="numeric"
+                                   pattern="[0-9]*"
+                                   required
+                                   autofocus>
+                            <div class="form-text">
+                                Enter the 6-digit code from your authenticator app, or use a backup code.
+                            </div>
+                        </div>
+
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check me-2"></i>Verify Code
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center">
+                        <hr>
+                        <p class="text-muted mb-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Having trouble?
+                        </p>
+                        <p class="small">
+                            You can use a backup code if your authenticator app is unavailable.<br>
+                            Contact your administrator if you've lost access to both.
+                        </p>
+                        
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4 border-info">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2 text-info"></i>Tips
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            The code changes every 30 seconds
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Enter the code without spaces or dashes
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Backup codes are 8 characters long (e.g., ABCD-1234)
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-submit form when 6 digits are entered
+document.getElementById('verification_code').addEventListener('input', function() {
+    const code = this.value.replace(/\D/g, ''); // Remove non-digits
+    this.value = code; // Update field with cleaned value
+    
+    if (code.length === 6) {
+        // Small delay to ensure user sees the complete code
+        setTimeout(() => {
+            this.form.submit();
+        }, 300);
+    }
+});
+
+// Format backup codes with dash
+document.getElementById('verification_code').addEventListener('keyup', function() {
+    let value = this.value.toUpperCase();
+    
+    // If it looks like a backup code (letters and numbers), add dash after 4 chars
+    if (value.length === 4 && /^[A-Z0-9]+$/.test(value)) {
+        this.value = value + '-';
+    }
+});
+
+// Focus on the input when page loads
+window.addEventListener('load', function() {
+    document.getElementById('verification_code').focus();
+});
+</script>
+{% endblock %}

@@ -124,11 +124,27 @@ def index():
         # Get user info
         user = g.current_user
         
+        # Log dashboard access
+        log_activity(logger, "dashboard_accessed", {
+            'description': f'User {user.get("username") if user else "unknown"} accessed dashboard',
+            'user': user.get('username') if user else 'unknown',
+            'user_role': user.get('role') if user else 'unknown',
+            'ca_count': ca_count,
+            'cert_count': cert_count,
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         return render_template('index.html', 
                              ca_count=ca_count, 
                              cert_count=cert_count,
                              user=user)
     except Exception as e:
+        log_activity(logger, "dashboard_access_failed", {
+            'description': f'Error loading dashboard: {str(e)}',
+            'error_message': str(e),
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading dashboard: {str(e)}', 'error')
         return render_template('index.html', ca_count=0, cert_count=0, user=g.current_user)
 
@@ -136,6 +152,13 @@ def index():
 @login_required('ca.create')
 def create_ca_form():
     """Show form for creating a new Certificate Authority."""
+    # Log access to CA creation form
+    log_activity(logger, "ca_creation_form_accessed", {
+        'description': f'User {g.current_user.get("username") if g.current_user else "unknown"} accessed CA creation form',
+        'user': g.current_user.get('username') if g.current_user else 'unknown',
+        'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+    })
+    
     # Get available cryptographic options
     ecc_curves = ECCCrypto.get_supported_curves()
     rsa_key_sizes = [2048, 3072, 4096]
@@ -164,6 +187,12 @@ def create_ca_form():
                             'organization': subject.get('organization', 'Unknown')
                         })
     except Exception as e:
+        log_activity(logger, "ca_creation_form_error", {
+            'description': f'Error loading root CAs for form: {str(e)}',
+            'error_message': str(e),
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading root CAs: {str(e)}', 'error')
     
     return render_template('create_ca.html', 
@@ -376,7 +405,7 @@ def add_certificate_to_crl(ca_filename, cert_serial, revocation_reason='unspecif
             return False  # Already revoked
     
     # Add certificate to CRL
-        revoked_entry = {
+    revoked_entry = {
         "serial_number": cert_serial,
         "revocation_date": datetime.now(timezone.utc).isoformat() + "Z",
         "reason": revocation_reason
@@ -549,6 +578,7 @@ def create_ca():
             'validity_years': validity_years,
             'ca_filename': ca_filename,
             'serial_number': ca_cert_data["serial_number"],
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
             'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
         })
         
@@ -593,7 +623,22 @@ def list_cas():
                         'created': certificate.get('validity', {}).get('not_before', 'Unknown'),
                         'expires': certificate.get('validity', {}).get('not_after', 'Unknown')
                     })
+                    
+        # Log CAs list access
+        log_activity(logger, "cas_list_accessed", {
+            'description': f'User {g.current_user.get("username") if g.current_user else "unknown"} viewed CAs list',
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'cas_count': len(cas),
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
     except Exception as e:
+        log_activity(logger, "cas_list_access_failed", {
+            'description': f'Error loading CAs list: {str(e)}',
+            'error_message': str(e),
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading CAs: {str(e)}', 'error')
     
     return render_template('list_cas.html', cas=cas)
@@ -606,8 +651,26 @@ def view_ca(filename):
         filepath = os.path.join(CA_STORAGE_DIR, filename)
         with open(filepath, 'r') as f:
             ca_data = json.load(f)
+        
+        # Log CA viewing
+        ca_common_name = ca_data.get('certificate', ca_data).get('subject', {}).get('common_name', 'Unknown')
+        log_activity(logger, "ca_viewed", {
+            'description': f'User {g.current_user.get("username") if g.current_user else "unknown"} viewed CA: {ca_common_name}',
+            'ca_file': filename,
+            'ca_common_name': ca_common_name,
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         return render_template('view_ca.html', ca_data=ca_data, filename=filename)
     except Exception as e:
+        log_activity(logger, "ca_view_failed", {
+            'description': f'Error loading CA {filename}: {str(e)}',
+            'ca_file': filename,
+            'error_message': str(e),
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading CA: {str(e)}', 'error')
         return redirect(url_for('list_cas'))
 
@@ -841,6 +904,7 @@ def create_cert():
             'issuer_ca': ca_filename,
             'cert_filename': cert_filename,
             'serial_number': cert_data_obj["serial_number"],
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
             'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
         })
         
@@ -857,6 +921,7 @@ def create_cert():
             'error_type': type(e).__name__,
             'cert_type': cert_type if 'cert_type' in locals() else 'unknown',
             'ca_filename': ca_filename if 'ca_filename' in locals() else 'unknown',
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
             'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
         }, level="ERROR")
         
@@ -1051,8 +1116,30 @@ def revoke_certificate(filename):
         
         certificate = cert_data.get('certificate', cert_data)
         issuer_ca_filename = cert_data.get('issuer_ca', {}).get('filename')
+        cert_common_name = certificate.get('subject', {}).get('common_name', 'Unknown')
+        cert_serial = certificate.get('serial_number')
+        
+        # Log revocation attempt
+        log_activity(logger, "certificate_revocation_initiated", {
+            'description': f'Certificate revocation initiated for {cert_common_name}',
+            'certificate_file': filename,
+            'common_name': cert_common_name,
+            'serial_number': cert_serial,
+            'issuer_ca': issuer_ca_filename,
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
         
         if not issuer_ca_filename:
+            log_activity(logger, "certificate_revocation_failed", {
+                'description': f'Cannot revoke certificate {cert_common_name}: issuer CA not found',
+                'certificate_file': filename,
+                'common_name': cert_common_name,
+                'serial_number': cert_serial,
+                'error': 'issuer_ca_not_found',
+                'user': g.current_user.get("username") if g.current_user else 'unknown',
+                'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+            }, level="ERROR")
             flash('Cannot revoke certificate: issuer CA not found', 'error')
             return redirect(url_for('list_certs'))
         
@@ -1062,7 +1149,7 @@ def revoke_certificate(filename):
         # Add to CRL
         success = add_certificate_to_crl(
             issuer_ca_filename, 
-            certificate.get('serial_number'),
+            cert_serial,
             revocation_reason
         )
         
@@ -1077,13 +1164,45 @@ def revoke_certificate(filename):
             with open(cert_filepath, 'w') as f:
                 json.dump(cert_data, f, indent=2)
             
-            flash(f'Certificate "{certificate.get("subject", {}).get("common_name", "Unknown")}" revoked successfully!', 'success')
+            # Log successful revocation
+            log_activity(logger, "certificate_revoked", {
+                'description': f'Certificate revoked successfully: {cert_common_name}',
+                'certificate_file': filename,
+                'common_name': cert_common_name,
+                'serial_number': cert_serial,
+                'revocation_reason': revocation_reason,
+                'issuer_ca': issuer_ca_filename,
+                'user': g.current_user.get("username") if g.current_user else 'unknown',
+                'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+            })
+            
+            flash(f'Certificate "{cert_common_name}" revoked successfully!', 'success')
         else:
+            # Log already revoked
+            log_activity(logger, "certificate_revocation_skipped", {
+                'description': f'Certificate {cert_common_name} was already revoked',
+                'certificate_file': filename,
+                'common_name': cert_common_name,
+                'serial_number': cert_serial,
+                'user': g.current_user.get("username") if g.current_user else 'unknown',
+                'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+            }, level="WARNING")
             flash('Certificate was already revoked', 'warning')
         
         return redirect(url_for('list_certs'))
         
     except Exception as e:
+        # Log revocation error
+        log_activity(logger, "certificate_revocation_error", {
+            'description': f'Error revoking certificate: {str(e)}',
+            'certificate_file': filename,
+            'error_message': str(e),
+            'error_type': type(e).__name__,
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
+        
+        logger.error(f"Certificate revocation failed for {filename}: {str(e)}", exc_info=True)
         flash(f'Error revoking certificate: {str(e)}', 'error')
         return redirect(url_for('list_certs'))
 
@@ -1359,6 +1478,114 @@ def notification_history():
         flash(f'Error loading notification history: {str(e)}', 'error')
         return redirect(url_for('index'))
 
+# Log Viewer Routes
+
+@app.route('/admin/logs')
+@admin_required
+def view_logs():
+    """Display system logs with filtering and pagination."""
+    try:
+        # Get available log files
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        if not os.path.exists(log_dir):
+            flash('No logs directory found', 'warning')
+            return redirect(url_for('index'))
+        
+        log_files = []
+        for filename in os.listdir(log_dir):
+            if filename.endswith('.log'):
+                filepath = os.path.join(log_dir, filename)
+                stat = os.stat(filepath)
+                log_files.append({
+                    'name': filename,
+                    'size': stat.st_size,
+                    'modified': datetime.fromtimestamp(stat.st_mtime, timezone.utc),
+                    'path': filepath
+                })
+        
+        # Sort by modification time (newest first)
+        log_files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        # Get filter parameters
+        selected_log = request.args.get('log', log_files[0]['name'] if log_files else None)
+        level_filter = request.args.get('level', 'ALL')
+        search_term = request.args.get('search', '')
+        lines = int(request.args.get('lines', 100))
+        
+        log_entries = []
+        if selected_log:
+            log_entries = _read_log_file(log_dir, selected_log, level_filter, search_term, lines)
+        
+        return render_template('admin/view_logs.html', 
+                             log_files=log_files,
+                             selected_log=selected_log,
+                             level_filter=level_filter,
+                             search_term=search_term,
+                             lines=lines,
+                             log_entries=log_entries)
+    except Exception as e:
+        flash(f'Error loading logs: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/admin/logs/download/<filename>')
+@admin_required
+def download_log(filename):
+    """Download a log file."""
+    try:
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        log_path = os.path.join(log_dir, filename)
+        
+        # Security check: ensure filename is just a filename, not a path
+        if not filename or '/' in filename or '\\' in filename or '..' in filename:
+            flash('Invalid log filename', 'error')
+            return redirect(url_for('view_logs'))
+        
+        # Check if file exists
+        if not os.path.exists(log_path) or not filename.endswith('.log'):
+            flash('Log file not found', 'error')
+            return redirect(url_for('view_logs'))
+        
+        return send_file(log_path, as_attachment=True, download_name=filename)
+    except Exception as e:
+        flash(f'Error downloading log file: {str(e)}', 'error')
+        return redirect(url_for('view_logs'))
+
+@app.route('/admin/logs/clear/<filename>', methods=['POST'])
+@admin_required
+def clear_log(filename):
+    """Clear a log file (truncate to zero bytes)."""
+    try:
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        log_path = os.path.join(log_dir, filename)
+        
+        # Security check: ensure filename is just a filename, not a path
+        if not filename or '/' in filename or '\\' in filename or '..' in filename:
+            flash('Invalid log filename', 'error')
+            return redirect(url_for('view_logs'))
+        
+        # Check if file exists
+        if not os.path.exists(log_path) or not filename.endswith('.log'):
+            flash('Log file not found', 'error')
+            return redirect(url_for('view_logs'))
+        
+        # Truncate the file
+        with open(log_path, 'w') as f:
+            pass  # Opening in 'w' mode truncates the file
+        
+        # Log this action
+        log_activity(logger, "log_file_cleared", {
+            'description': f'Log file cleared: {filename}',
+            'log_file': filename,
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown'),
+            'admin_user': g.current_user.get("username") if g.current_user else 'unknown'
+        })
+        
+        flash(f'Log file {filename} has been cleared successfully', 'success')
+        return redirect(url_for('view_logs', log=filename))
+    except Exception as e:
+        flash(f'Error clearing log file: {str(e)}', 'error')
+        return redirect(url_for('view_logs'))
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors."""
@@ -1372,6 +1599,144 @@ def internal_error(error):
     return render_template('error.html', 
                          error_code=500, 
                          error_message="Internal server error"), 500
+
+# Log file helper functions
+def _read_log_file(log_dir, filename, level_filter='ALL', search_term='', lines=100):
+    """Read and parse log file with filtering."""
+    log_path = os.path.join(log_dir, filename)
+    
+    if not os.path.exists(log_path):
+        return []
+    
+    try:
+        entries = []
+        with open(log_path, 'r', encoding='utf-8') as f:
+            # Read the last N lines efficiently
+            all_lines = f.readlines()
+            recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+        
+        for line_num, line in enumerate(recent_lines, 1):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Parse standard log format: timestamp | level | logger | function:line | message
+            entry = _parse_log_line(line, line_num)
+            
+            # Apply level filter
+            if level_filter != 'ALL' and entry.get('level', '').upper() != level_filter.upper():
+                continue
+            
+            # Apply search filter
+            if search_term:
+                searchable_text = f"{entry.get('message', '')} {entry.get('logger', '')} {entry.get('function', '')} {entry.get('user', '')}".lower()
+                if search_term.lower() not in searchable_text:
+                    continue
+            
+            entries.append(entry)
+        
+        # Sort entries by timestamp (descending - newest first)
+        entries.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return entries[-lines:] if len(entries) > lines else entries
+        
+    except Exception as e:
+        logger.error(f"Error reading log file {filename}: {e}")
+        return [{'error': f'Error reading log file: {str(e)}', 'line_num': 1}]
+
+def _parse_log_line(line, line_num):
+    """Parse a single log line into structured data."""
+    try:
+        # Standard format: 2025-08-13 13:14:11 | INFO     | qpki.web             | log_activity        :225  | Activity: web_app_startup - qPKI Web Application starting
+        parts = line.split(' | ')
+        
+        if len(parts) >= 5:
+            timestamp_str = parts[0]
+            level = parts[1].strip()
+            logger_name = parts[2].strip()
+            func_line = parts[3].strip()
+            message = ' | '.join(parts[4:])  # In case message contains pipes
+            
+            # Parse function and line number
+            func_parts = func_line.split(':')
+            function = func_parts[0].strip() if func_parts else 'unknown'
+            line_no = func_parts[1].strip() if len(func_parts) > 1 else ''
+            
+            # Extract user information from message if it's a structured log activity
+            user = 'system'  # Default to 'system' for non-user activities
+            
+            # Check if this is a log_activity message that might contain user info
+            if 'Activity:' in message:
+                import re
+                
+                # First check for the new format: [User: username]
+                user_bracket_match = re.search(r'\[User: ([^\]]+)\]', message)
+                if user_bracket_match:
+                    user = user_bracket_match.group(1)
+                else:
+                    # Fallback to old patterns for backward compatibility
+                    if 'User ' in message:
+                        # Pattern: "User username viewed ..." or "User 'username' ..."
+                        user_patterns = [
+                            r"User ([\w\.-]+) ",  # User username 
+                            r"User '([^']+)' ",   # User 'username' 
+                            r"User \"([^\"]+)\" "  # User "username" 
+                        ]
+                        for pattern in user_patterns:
+                            match = re.search(pattern, message)
+                            if match:
+                                user = match.group(1)
+                                break
+                    elif 'admin_user:' in message:
+                        # Pattern: "... admin_user: username ..."
+                        match = re.search(r'admin_user:\s*([\w\.-]+)', message)
+                        if match:
+                            user = match.group(1)
+                # For other activity logs, keep as 'system'
+            elif function == 'log_activity':
+                # This is a log_activity call, but might not have explicit user in message
+                # Keep as 'system' unless we can extract it
+                pass
+            else:
+                # Non-activity logs (startup, errors, etc.) - keep as 'system'
+                pass
+            
+            return {
+                'line_num': line_num,
+                'timestamp': timestamp_str,
+                'level': level,
+                'logger': logger_name,
+                'function': function,
+                'code_line': line_no,
+                'message': message,
+                'user': user,
+                'raw_line': line
+            }
+        else:
+            # Fallback for non-standard format
+            return {
+                'line_num': line_num,
+                'timestamp': '',
+                'level': 'UNKNOWN',
+                'logger': '',
+                'function': '',
+                'code_line': '',
+                'message': line,
+                'user': 'unknown',
+                'raw_line': line
+            }
+    except Exception as e:
+        return {
+            'line_num': line_num,
+            'timestamp': '',
+            'level': 'ERROR',
+            'logger': 'log_parser',
+            'function': '_parse_log_line',
+            'code_line': '',
+            'message': f'Error parsing line: {str(e)}',
+            'user': 'system',
+            'raw_line': line
+        }
 
 # Add context processor for authentication
 @app.context_processor

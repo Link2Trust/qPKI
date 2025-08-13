@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..database.manager import DatabaseManager
 from .models import User, UserSession, APIKey, UserRole, UserStatus
+from .mfa import MFAManager, mfa_setup_sessions
 
 
 class AuthenticationManager:
@@ -24,6 +25,7 @@ class AuthenticationManager:
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
         self.Session = sessionmaker(bind=db_manager.engine)
+        self.mfa_manager = MFAManager()
     
     def authenticate_user(self, username: str, password: str, ip_address: str = None) -> Tuple[bool, Optional[dict], str]:
         """
@@ -230,12 +232,12 @@ class AuthenticationManager:
         finally:
             db_session.close()
     
-    def create_user(self, user_data: Dict[str, Any], created_by: str = None) -> Tuple[bool, Optional[User], str]:
+    def create_user(self, user_data: Dict[str, Any], created_by: str = None) -> Tuple[bool, Optional[Dict], str]:
         """
         Create a new user account.
         
         Returns:
-            (success, user_object, message)
+            (success, user_data_dict, message)
         """
         db_session = self.Session()
         try:
@@ -271,7 +273,23 @@ class AuthenticationManager:
             db_session.add(user)
             db_session.commit()
             
-            return True, user, "User created successfully"
+            # Return user data dictionary to avoid session binding issues
+            created_user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': user.full_name,
+                'department': user.department,
+                'phone': user.phone,
+                'role': user.role,
+                'status': user.status,
+                'is_active': user.is_active,
+                'force_password_change': user.force_password_change,
+                'created_at': user.created_at,
+                'created_by': user.created_by
+            }
+            
+            return True, created_user_data, "User created successfully"
             
         except IntegrityError:
             db_session.rollback()
@@ -282,12 +300,12 @@ class AuthenticationManager:
         finally:
             db_session.close()
     
-    def update_user(self, user_id: int, updates: Dict[str, Any], updated_by: str = None) -> Tuple[bool, Optional[User], str]:
+    def update_user(self, user_id: int, updates: Dict[str, Any], updated_by: str = None) -> Tuple[bool, Optional[Dict], str]:
         """
         Update user information.
         
         Returns:
-            (success, user_object, message)
+            (success, user_data_dict, message)
         """
         db_session = self.Session()
         try:
@@ -316,7 +334,23 @@ class AuthenticationManager:
             user.updated_at = datetime.now(timezone.utc)
             db_session.commit()
             
-            return True, user, "User updated successfully"
+            # Return user data dictionary to avoid session binding issues
+            updated_user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'full_name': user.full_name,
+                'department': user.department,
+                'phone': user.phone,
+                'role': user.role,
+                'status': user.status,
+                'is_active': user.is_active,
+                'force_password_change': user.force_password_change,
+                'updated_at': user.updated_at,
+                'two_factor_enabled': user.two_factor_enabled
+            }
+            
+            return True, updated_user_data, "User updated successfully"
             
         except Exception as e:
             db_session.rollback()
@@ -434,6 +468,222 @@ class AuthenticationManager:
         except Exception as e:
             current_app.logger.error(f"Error cleaning up sessions: {e}")
             return 0
+        finally:
+            db_session.close()
+    
+    # MFA Methods
+    
+    def setup_mfa_for_user(self, user_id: int) -> Tuple[bool, Optional[str], str, str]:
+        """
+        Start MFA setup process for user.
+        
+        Returns:
+            (success, secret_key, provisioning_uri, message)
+        """
+        db_session = self.Session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            
+            if not user:
+                return False, None, "", "User not found"
+            
+            if user.two_factor_enabled:
+                return False, None, "", "MFA is already enabled for this user"
+            
+            # Generate secret key
+            secret_key = self.mfa_manager.generate_secret_key()
+            
+            # Generate provisioning URI for QR code
+            provisioning_uri = self.mfa_manager.get_provisioning_uri(user.email, secret_key)
+            
+            # Create setup session
+            session_token = mfa_setup_sessions.create_setup_session(user_id, secret_key)
+            
+            return True, secret_key, provisioning_uri, session_token
+            
+        except Exception as e:
+            return False, None, "", f"Error setting up MFA: {str(e)}"
+        finally:
+            db_session.close()
+    
+    def verify_mfa_setup(self, session_token: str, verification_code: str) -> Tuple[bool, str]:
+        """
+        Verify MFA setup with provided code.
+        
+        Returns:
+            (success, message)
+        """
+        db_session = self.Session()
+        try:
+            # Get setup session
+            setup_session = mfa_setup_sessions.get_setup_session(session_token)
+            
+            if not setup_session:
+                return False, "Invalid or expired setup session"
+            
+            # Verify the TOTP code
+            if not self.mfa_manager.verify_totp_code(setup_session['secret_key'], verification_code):
+                return False, "Invalid verification code"
+            
+            # Get user
+            user = db_session.query(User).filter_by(id=setup_session['user_id']).first()
+            
+            if not user:
+                mfa_setup_sessions.cleanup_session(session_token)
+                return False, "User not found"
+            
+            # Generate backup codes
+            backup_codes = self.mfa_manager.generate_backup_codes()
+            encrypted_backup_codes = self.mfa_manager.encrypt_backup_codes(backup_codes)
+            
+            # Enable MFA for user
+            user.totp_secret = setup_session['secret_key']
+            user.backup_codes = encrypted_backup_codes
+            user.two_factor_enabled = True
+            user.mfa_enabled_at = datetime.now(timezone.utc)
+            
+            db_session.commit()
+            
+            # Mark setup session as verified and cleanup
+            mfa_setup_sessions.mark_session_verified(session_token)
+            mfa_setup_sessions.cleanup_session(session_token)
+            
+            return True, "MFA enabled successfully"
+            
+        except Exception as e:
+            db_session.rollback()
+            return False, f"Error verifying MFA setup: {str(e)}"
+        finally:
+            db_session.close()
+    
+    def verify_mfa_code(self, user_id: int, code: str) -> Tuple[bool, str]:
+        """
+        Verify MFA code during login.
+        
+        Returns:
+            (success, message)
+        """
+        db_session = self.Session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            
+            if not user:
+                return False, "User not found"
+            
+            if not user.two_factor_enabled or not user.totp_secret:
+                return False, "MFA not enabled for user"
+            
+            # Check if it's a TOTP code
+            if self.mfa_manager.is_valid_totp_format(code):
+                if self.mfa_manager.verify_totp_code(user.totp_secret, code):
+                    return True, "MFA verification successful"
+            
+            # Check if it's a backup code
+            elif self.mfa_manager.is_valid_backup_code_format(code):
+                if user.backup_codes:
+                    success, updated_codes = self.mfa_manager.verify_backup_code(user.backup_codes, code)
+                    if success:
+                        user.backup_codes = updated_codes
+                        db_session.commit()
+                        return True, "Backup code used successfully"
+            
+            return False, "Invalid verification code"
+            
+        except Exception as e:
+            return False, f"Error verifying MFA code: {str(e)}"
+        finally:
+            db_session.close()
+    
+    def disable_mfa_for_user(self, user_id: int, admin_action: bool = False) -> Tuple[bool, str]:
+        """
+        Disable MFA for user.
+        
+        Returns:
+            (success, message)
+        """
+        db_session = self.Session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            
+            if not user:
+                return False, "User not found"
+            
+            if not user.two_factor_enabled:
+                return False, "MFA is not enabled for this user"
+            
+            # Disable MFA
+            user.two_factor_enabled = False
+            user.totp_secret = None
+            user.backup_codes = None
+            user.mfa_enabled_at = None
+            
+            db_session.commit()
+            
+            action_type = "by administrator" if admin_action else "by user"
+            return True, f"MFA disabled successfully {action_type}"
+            
+        except Exception as e:
+            db_session.rollback()
+            return False, f"Error disabling MFA: {str(e)}"
+        finally:
+            db_session.close()
+    
+    def get_backup_codes_info(self, user_id: int) -> Tuple[bool, int, str]:
+        """
+        Get backup codes information for user.
+        
+        Returns:
+            (success, remaining_codes_count, message)
+        """
+        db_session = self.Session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            
+            if not user:
+                return False, 0, "User not found"
+            
+            if not user.two_factor_enabled or not user.backup_codes:
+                return False, 0, "MFA not enabled or backup codes not generated"
+            
+            count = self.mfa_manager.get_backup_codes_count(user.backup_codes)
+            return True, count, f"User has {count} remaining backup codes"
+            
+        except Exception as e:
+            return False, 0, f"Error getting backup codes info: {str(e)}"
+        finally:
+            db_session.close()
+    
+    def regenerate_backup_codes(self, user_id: int) -> Tuple[bool, Optional[list], str]:
+        """
+        Generate new backup codes for user.
+        
+        Returns:
+            (success, backup_codes_list, message)
+        """
+        db_session = self.Session()
+        try:
+            user = db_session.query(User).filter_by(id=user_id).first()
+            
+            if not user:
+                return False, None, "User not found"
+            
+            if not user.two_factor_enabled:
+                return False, None, "MFA is not enabled for this user"
+            
+            # Generate new backup codes
+            backup_codes = self.mfa_manager.generate_backup_codes()
+            encrypted_backup_codes = self.mfa_manager.encrypt_backup_codes(backup_codes)
+            
+            # Update user
+            user.backup_codes = encrypted_backup_codes
+            
+            db_session.commit()
+            
+            return True, backup_codes, "New backup codes generated successfully"
+            
+        except Exception as e:
+            db_session.rollback()
+            return False, None, f"Error regenerating backup codes: {str(e)}"
         finally:
             db_session.close()
 

@@ -83,6 +83,7 @@ class User(Base):
     totp_secret = Column(String(255), nullable=True)
     backup_codes = Column(JSON, nullable=True)  # Encrypted backup codes
     two_factor_enabled = Column(Boolean, nullable=False, default=False)
+    mfa_enabled_at = Column(DateTime, nullable=True)
     
     # Audit fields
     created_at = Column(DateTime, default=func.now(), nullable=False)

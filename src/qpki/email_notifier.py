@@ -356,13 +356,15 @@ This is an automated message from qPKI.
         try:
             # Handle different date formats properly
             if not_after_str:
-                # If already has timezone info, just remove trailing Z if present
-                if '+' in not_after_str or '-' in not_after_str[-6:]:
-                    if not_after_str.endswith('Z'):
+                # Fix for date parsing - handle trailing 'Z' with timezone info
+                if not_after_str.endswith('Z'):
+                    # Check if there's already timezone info before the Z
+                    if '+' in not_after_str[:-1] or (len(not_after_str) > 6 and '-' in not_after_str[-7:-1]):
+                        # Remove trailing Z if timezone already present (e.g., "2024-12-31T23:59:59+00:00Z")
                         not_after_str = not_after_str[:-1]
-                elif not_after_str.endswith('Z'):
-                    # Only Z at the end, replace with UTC offset
-                    not_after_str = not_after_str.replace('Z', '+00:00')
+                    else:
+                        # Replace Z with UTC offset if no timezone info (e.g., "2024-12-31T23:59:59Z")
+                        not_after_str = not_after_str.replace('Z', '+00:00')
                 
                 not_after = datetime.fromisoformat(not_after_str)
             else:

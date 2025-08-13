@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}System Logs - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-file-alt text-primary me-2"></i>
+                    System Logs
+                </h1>
+                <div class="btn-group">
+                    {% if selected_log %}
+                    <a href="{{ url_for('download_log', filename=selected_log) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-download me-1"></i>Download
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#clearLogModal">
+                        <i class="fas fa-trash me-1"></i>Clear Log
+                    </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Log File Selection and Filters -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Log Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('view_logs') }}" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="log" class="form-label">Log File</label>
+                            <select name="log" id="log" class="form-select" onchange="this.form.submit()">
+                                {% for log_file in log_files %}
+                                <option value="{{ log_file.name }}" 
+                                        {% if log_file.name == selected_log %}selected{% endif %}>
+                                    {{ log_file.name }} ({{ "%.1f"|format(log_file.size / 1024) }} KB)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="level" class="form-label">Log Level</label>
+                            <select name="level" id="level" class="form-select">
+                                <option value="ALL" {% if level_filter == 'ALL' %}selected{% endif %}>All Levels</option>
+                                <option value="DEBUG" {% if level_filter == 'DEBUG' %}selected{% endif %}>DEBUG</option>
+                                <option value="INFO" {% if level_filter == 'INFO' %}selected{% endif %}>INFO</option>
+                                <option value="WARNING" {% if level_filter == 'WARNING' %}selected{% endif %}>WARNING</option>
+                                <option value="ERROR" {% if level_filter == 'ERROR' %}selected{% endif %}>ERROR</option>
+                                <option value="CRITICAL" {% if level_filter == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="lines" class="form-label">Lines to Show</label>
+                            <select name="lines" id="lines" class="form-select">
+                                <option value="50" {% if lines == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if lines == 100 %}selected{% endif %}>100</option>
+                                <option value="250" {% if lines == 250 %}selected{% endif %}>250</option>
+                                <option value="500" {% if lines == 500 %}selected{% endif %}>500</option>
+                                <option value="1000" {% if lines == 1000 %}selected{% endif %}>1000</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" 
+                                   name="search" 
+                                   id="search" 
+                                   class="form-control" 
+                                   placeholder="Search in logs..."
+                                   value="{{ search_term }}">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Log Entries Display -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Log Entries
+                        {% if selected_log %}
+                        <span class="text-muted">- {{ selected_log }}</span>
+                        {% endif %}
+                    </h5>
+                    <span class="badge bg-secondary">
+                        {{ log_entries|length }} entries shown
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    {% if log_entries %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped mb-0" style="font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 160px;">Timestamp</th>
+                                    <th style="width: 80px;">Level</th>
+                                    <th style="width: 180px;">Logger</th>
+                                    <th style="width: 140px;">Function:Line</th>
+                                    <th style="width: 100px;">User</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in log_entries %}
+                                <tr class="{% if entry.level == 'ERROR' or entry.level == 'CRITICAL' %}table-danger{% elif entry.level == 'WARNING' %}table-warning{% elif entry.level == 'DEBUG' %}table-light text-muted{% endif %}">
+                                    <td class="text-nowrap small">{{ entry.timestamp }}</td>
+                                    <td class="text-center">
+                                        <span class="badge 
+                                            {% if entry.level == 'ERROR' or entry.level == 'CRITICAL' %}bg-danger
+                                            {% elif entry.level == 'WARNING' %}bg-warning text-dark
+                                            {% elif entry.level == 'INFO' %}bg-info
+                                            {% elif entry.level == 'DEBUG' %}bg-secondary
+                                            {% else %}bg-secondary
+                                            {% endif %}">
+                                            {{ entry.level }}
+                                        </span>
+                                    </td>
+                                    <td class="text-truncate small" title="{{ entry.logger }}">{{ entry.logger }}</td>
+                                    <td class="text-truncate small">
+                                        {% if entry.function and entry.code_line %}
+                                        <span title="{{ entry.function }}:{{ entry.code_line }}">
+                                            {{ entry.function }}:{{ entry.code_line }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-truncate small" title="{{ entry.user }}">
+                                        {% if entry.user %}
+                                        <span class="badge 
+                                            {% if entry.user == 'system' %}bg-secondary
+                                            {% elif entry.user == 'unknown' %}bg-warning text-dark
+                                            {% else %}bg-primary
+                                            {% endif %}">
+                                            {{ entry.user }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">system</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small">
+                                        <div class="text-break" style="max-width: 600px;">
+                                            {{ entry.message }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-circle text-muted fa-3x mb-3"></i>
+                        <h5 class="text-muted">No log entries found</h5>
+                        <p class="text-muted">
+                            {% if search_term %}
+                            No entries match your search criteria "{{ search_term }}".
+                            {% elif level_filter != 'ALL' %}
+                            No {{ level_filter }} level entries found in the selected log file.
+                            {% else %}
+                            The selected log file appears to be empty or doesn't exist.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Log Files Summary -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Available Log Files</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for log_file in log_files %}
+                        <div class="col-md-4 mb-3">
+                            <div class="border p-3 rounded {% if log_file.name == selected_log %}border-primary bg-light{% endif %}">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-file-alt me-1"></i>
+                                    {{ log_file.name }}
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>Modified: {{ log_file.modified.strftime('%Y-%m-%d %H:%M:%S') }} UTC<br>
+                                    <i class="fas fa-weight me-1"></i>Size: {{ "%.2f"|format(log_file.size / 1024) }} KB
+                                    {% if log_file.size > 1024*1024 %}
+                                    <span class="text-warning">({{ "%.1f"|format(log_file.size / (1024*1024)) }} MB)</span>
+                                    {% endif %}
+                                </small>
+                                <div class="mt-2">
+                                    <a href="{{ url_for('view_logs', log=log_file.name) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                    <a href="{{ url_for('download_log', filename=log_file.name) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Log Modal -->
+{% if selected_log %}
+<div class="modal fade" id="clearLogModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Clear Log File
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Are you sure you want to clear the log file "{{ selected_log }}"?</strong></p>
+                <p class="text-muted">
+                    This action will permanently delete all log entries in this file. 
+                    The file will be truncated to zero bytes but will remain available for new log entries.
+                </p>
+                <p class="text-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    This action cannot be undone!
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('clear_log', filename=selected_log) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Clear Log File
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh functionality
+let autoRefreshInterval;
+let refreshEnabled = false;
+
+function toggleAutoRefresh() {
+    const btn = document.getElementById('autoRefreshBtn');
+    if (refreshEnabled) {
+        clearInterval(autoRefreshInterval);
+        refreshEnabled = false;
+        btn.innerHTML = '<i class="fas fa-play me-1"></i>Auto Refresh';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-outline-success');
+    } else {
+        autoRefreshInterval = setInterval(() => {
+            location.reload();
+        }, 10000); // Refresh every 10 seconds
+        refreshEnabled = true;
+        btn.innerHTML = '<i class="fas fa-pause me-1"></i>Auto Refresh';
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-success');
+    }
+}
+
+// Search functionality with Enter key
+document.getElementById('search').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        this.form.submit();
+    }
+});
+
+// Highlight search terms in the log entries
+const searchTerm = "{{ search_term }}";
+if (searchTerm) {
+    const messageElements = document.querySelectorAll('td.small .text-break');
+    messageElements.forEach(element => {
+        const text = element.textContent;
+        const regex = new RegExp(`(${searchTerm})`, 'gi');
+        const highlightedText = text.replace(regex, '<mark class="bg-warning">$1</mark>');
+        element.innerHTML = highlightedText;
+    });
+}
+
+// Auto-scroll to bottom for real-time monitoring
+function scrollToBottom() {
+    window.scrollTo(0, document.body.scrollHeight);
+}
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl+R or F5 to refresh
+    if ((e.ctrlKey && e.key === 'r') || e.key === 'F5') {
+        e.preventDefault();
+        location.reload();
+    }
+    
+    // Ctrl+F to focus search
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        document.getElementById('search').focus();
+    }
+    
+    // Escape to clear search
+    if (e.key === 'Escape' && document.getElementById('search') === document.activeElement) {
+        document.getElementById('search').value = '';
+        document.getElementById('search').form.submit();
+    }
+});
+
+// Initialize tooltips for truncated text
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
