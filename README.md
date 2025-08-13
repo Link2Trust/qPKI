@@ -4,7 +4,7 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-educational-orange)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Version](https://img.shields.io/badge/version-v1.4-blue)
+![Version](https://img.shields.io/badge/version-v2.0.1-blue)
 
 A **comprehensive hybrid Public Key Infrastructure (PKI)** implementation that combines:
 - **Classical cryptography**: RSA and ECC for traditional compatibility
@@ -35,6 +35,7 @@ This project is designed for **educational purposes** to demonstrate quantum-saf
 ### Enterprise Features
 - **Database Integration**: SQLAlchemy ORM with support for SQLite, PostgreSQL, MySQL
 - **User Authentication & Authorization**: Role-based access control (Admin, Operator, Auditor, Viewer)
+- **Multi-Factor Authentication (MFA)**: TOTP-based 2FA with backup recovery codes
 - **Session Management**: Secure session handling with automatic cleanup
 - **Password Security**: Bcrypt hashing, expiration policies, and strength validation
 - **Audit Logging**: Comprehensive RFC 3647 compliant audit trail
@@ -230,6 +231,15 @@ Then visit `http://localhost:9090` to access the comprehensive web interface:
 
 See [README_WEB_UI.md](README_WEB_UI.md) for detailed web interface documentation.
 
+## 📚 Complete Documentation
+
+For comprehensive documentation including setup guides, troubleshooting, and recent updates:
+
+- **[Complete User Documentation](help/README.md)** - Full documentation index
+- **[Multi-Factor Authentication Guide](help/mfa-guide.md)** - Complete MFA setup and management
+- **[Troubleshooting Guide](help/troubleshooting.md)** - Common issues and solutions
+- **[Recent Updates](help/recent-updates.md)** - Latest features, bug fixes, and improvements
+
 ## 🔐 Authentication & User Management
 
 ### User Roles & Permissions
@@ -246,6 +256,8 @@ qPKI implements a comprehensive role-based access control system:
 ### Authentication Features
 
 - **Secure Password Hashing**: Bcrypt with configurable rounds
+- **Multi-Factor Authentication (MFA)**: TOTP-based 2FA with Google Authenticator, Authy, Microsoft Authenticator support
+- **Backup Recovery Codes**: 10 single-use codes for MFA account recovery
 - **Password Policies**: Minimum length, complexity requirements, expiration
 - **Session Management**: Secure tokens, automatic timeout, concurrent session control
 - **Account Security**: Login attempt limiting, account lockout protection

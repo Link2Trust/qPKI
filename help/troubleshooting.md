@@ -15,6 +15,8 @@ This comprehensive troubleshooting guide helps you diagnose and resolve common i
 | Permission denied errors | [File Permission Issues](#-file-permission-issues) |
 | Performance problems | [Performance Issues](#-performance-issues) |
 | Authentication failures | [Authentication Issues](#-authentication-issues) |
+| MFA/2FA problems | [Multi-Factor Authentication Issues](#-multi-factor-authentication-issues) |
+| User template errors | [Template and Session Issues](#-template-and-session-issues) |
 
 ---
 
@@ -608,6 +610,264 @@ This was a known issue with date parsing that has been fixed.
    app = Flask(__name__)
    app.secret_key = os.environ.get('QPKI_SECRET_KEY', 'default')
    print('Session key configured:', bool(app.secret_key))
+   "
+   ```
+
+---
+
+## 🔒 Multi-Factor Authentication Issues
+
+### MFA Setup Problems
+
+#### Problem: "'moment' is undefined" Error During MFA Setup
+
+**Symptoms**:
+- Error after entering authenticator code
+- JavaScript/template error in backup codes page
+- UndefinedError in Jinja2 template
+
+**Solution**:
+This was a template issue that has been fixed in the latest version.
+
+```bash
+# Verify the fix is applied
+grep -n "moment()" templates/auth/mfa_backup_codes.html
+# Should return no results if fixed
+
+grep -n "current_date" templates/auth/mfa_backup_codes.html  
+# Should show the corrected template
+```
+
+#### Problem: QR Code Won't Display or Scan
+
+**Solutions**:
+
+1. **Check dependencies**:
+   ```bash
+   # Verify required packages are installed
+   pip3 list | grep -E "(pyotp|qrcode|Pillow)"
+   
+   # Install if missing
+   pip3 install pyotp qrcode[pil] Pillow
+   ```
+
+2. **Test QR code generation**:
+   ```bash
+   python3 -c "
+   import sys
+   sys.path.insert(0, 'src')
+   from qpki.auth.mfa import MFAManager
+   
+   mfa = MFAManager()
+   secret = mfa.generate_secret_key()
+   uri = mfa.get_provisioning_uri('test@example.com', secret)
+   qr_buffer = mfa.generate_qr_code(uri)
+   print('QR code generation: SUCCESS' if qr_buffer else 'FAILED')
+   "
+   ```
+
+3. **Manual secret entry**:
+   - If QR code fails, use manual entry in authenticator app
+   - Secret key is displayed below the QR code
+
+#### Problem: "Invalid verification code" During Setup
+
+**Solutions**:
+
+1. **Check time synchronization**:
+   ```bash
+   # Check system time
+   date
+   
+   # Synchronize time (Linux)
+   sudo ntpdate -s time.nist.gov
+   
+   # Synchronize time (macOS)
+   sudo sntp -sS time.apple.com
+   ```
+
+2. **Verify TOTP generation**:
+   ```bash
+   python3 -c "
+   import sys
+   sys.path.insert(0, 'src')
+   from qpki.auth.mfa import MFAManager
+   
+   mfa = MFAManager()
+   secret = 'YOUR_SECRET_KEY_HERE'
+   code = mfa.generate_totp_code(secret)
+   print('Generated TOTP code:', code)
+   "
+   ```
+
+### MFA Login Issues
+
+#### Problem: Cannot Login After Enabling MFA
+
+**Solutions**:
+
+1. **Use backup codes**:
+   - Enter a backup code instead of TOTP code
+   - Each backup code can only be used once
+
+2. **Admin disable MFA**:
+   ```bash
+   # Emergency MFA disable via database
+   python3 -c "
+   import sys
+   sys.path.insert(0, 'src')
+   from qpki.auth import AuthenticationManager
+   from qpki.database import DatabaseManager, DatabaseConfig
+   
+   db_config = DatabaseConfig.from_env()
+   db_manager = DatabaseManager(db_config)
+   auth_manager = AuthenticationManager(db_manager)
+   
+   success, message = auth_manager.disable_mfa_for_user(USER_ID, admin_action=True)
+   print('MFA disable result:', message)
+   "
+   ```
+
+#### Problem: Backup Codes Not Working
+
+**Solutions**:
+
+1. **Verify backup code format**:
+   - Backup codes are 8-character alphanumeric
+   - Case sensitive
+   - No spaces or special characters
+
+2. **Check remaining backup codes**:
+   ```bash
+   python3 -c "
+   import sys
+   sys.path.insert(0, 'src')
+   from qpki.auth import AuthenticationManager
+   from qpki.database import DatabaseManager, DatabaseConfig
+   
+   db_config = DatabaseConfig.from_env()
+   db_manager = DatabaseManager(db_config)
+   auth_manager = AuthenticationManager(db_manager)
+   
+   success, count, message = auth_manager.get_backup_codes_info(USER_ID)
+   print(f'Remaining backup codes: {count}')
+   "
+   ```
+
+---
+
+## 🖼️ Template and Session Issues
+
+### Template Errors
+
+#### Problem: "'bool' object is not callable" Error
+
+**Symptoms**:
+- Template errors when accessing user profiles
+- TypeError about calling boolean values
+- Issues with `user.is_password_expired()` calls
+
+**Cause**:
+This occurs when templates try to call methods on dictionary objects that contain boolean values.
+
+**Solution**:
+This has been fixed in recent versions. The templates now access boolean values directly:
+
+```bash
+# Check if templates are fixed
+grep -r "is_password_expired()" templates/
+# Should return no results if fixed
+
+grep -r "is_password_expired" templates/
+# Should show access without parentheses
+```
+
+#### Problem: "TemplateNotFound" Errors
+
+**Solutions**:
+
+1. **Check template files exist**:
+   ```bash
+   # Verify all auth templates exist
+   ls -la templates/auth/
+   
+   # Should include:
+   # - edit_user.html
+   # - mfa_backup_codes.html
+   # - mfa_setup.html
+   # - mfa_verify.html
+   # - profile.html
+   ```
+
+2. **Check template syntax**:
+   ```bash
+   # Validate Jinja2 syntax in templates
+   python3 -c "
+   from jinja2 import Template, TemplateError
+   import os
+   
+   for root, dirs, files in os.walk('templates'):
+       for file in files:
+           if file.endswith('.html'):
+               path = os.path.join(root, file)
+               with open(path) as f:
+                   try:
+                       Template(f.read())
+                       print(f'✓ {path}')
+                   except TemplateError as e:
+                       print(f'✗ {path}: {e}')
+   "
+   ```
+
+### Session Issues
+
+#### Problem: "DetachedInstanceError" in SQLAlchemy
+
+**Symptoms**:
+- Errors when creating or updating users
+- "Instance is not bound to a Session" errors
+- Issues accessing user object attributes
+
+**Cause**:
+This occurs when SQLAlchemy objects are accessed after their database session has closed.
+
+**Solution**:
+This has been fixed by returning dictionary objects instead of SQLAlchemy objects:
+
+```bash
+# Verify the fix is in place
+grep -n "user_data_dict" src/qpki/auth/auth_manager.py
+# Should show methods returning dictionaries
+```
+
+#### Problem: Session Timeout Issues
+
+**Solutions**:
+
+1. **Check session configuration**:
+   ```bash
+   python3 -c "
+   import os
+   print('Session timeout configured:', 
+         os.environ.get('QPKI_SESSION_TIMEOUT', 'default'))
+   "
+   ```
+
+2. **Verify session cleanup**:
+   ```bash
+   # Check for expired sessions
+   python3 -c "
+   import sys
+   sys.path.insert(0, 'src')
+   from qpki.auth import AuthenticationManager
+   from qpki.database import DatabaseManager, DatabaseConfig
+   
+   db_config = DatabaseConfig.from_env()
+   db_manager = DatabaseManager(db_config)
+   auth_manager = AuthenticationManager(db_manager)
+   
+   count = auth_manager.cleanup_expired_sessions()
+   print(f'Cleaned up {count} expired sessions')
    "
    ```
 

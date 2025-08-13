@@ -18,6 +18,7 @@ Welcome to the comprehensive qPKI (Quantum-Ready Post-Quantum Public Key Infrast
 ### 🌐 **Web Interface**
 - [Web UI Overview](./web-interface.md) - Complete web interface guide
 - [Authentication & User Management](./authentication.md) - User accounts, roles, and permissions
+- [Multi-Factor Authentication](./mfa-guide.md) - Complete MFA setup and management guide
 - [Dashboard & Monitoring](./dashboard.md) - System overview and monitoring
 
 ### 📧 **Email Notifications**
@@ -59,6 +60,7 @@ Welcome to the comprehensive qPKI (Quantum-Ready Post-Quantum Public Key Infrast
 - [Database Schema](./database-schema.md) - Database structure reference
 - [Certificate Field Reference](./certificate-fields.md) - Understanding certificate data
 - [Supported File Formats](./file-formats.md) - Import/export format support
+- [Recent Updates](./recent-updates.md) - Latest features, bug fixes, and improvements
 
 ### 🎯 **Use Cases**
 - [Enterprise Deployment](./enterprise-deployment.md) - Large-scale deployment guide

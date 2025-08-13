@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Backup Codes - qPKI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow border-success">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Two-Factor Authentication Enabled
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-shield-alt me-2"></i>Success!</h5>
+                        <p class="mb-0">
+                            Two-factor authentication has been successfully enabled for your account.
+                            Your account is now more secure!
+                        </p>
+                    </div>
+
+                    <h5 class="text-warning">
+                        <i class="fas fa-key me-2"></i>Save Your Backup Codes
+                    </h5>
+                    <p>
+                        These backup codes can be used to access your account if you lose your authenticator device.
+                        <strong>Each code can only be used once.</strong>
+                    </p>
+
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Important:</h6>
+                        <ul class="mb-0">
+                            <li>Save these codes in a secure location</li>
+                            <li>Each code can only be used once</li>
+                            <li>You can regenerate new codes anytime from your profile</li>
+                            <li>These codes are the only way to recover your account without your authenticator app</li>
+                        </ul>
+                    </div>
+
+                    {% if backup_codes %}
+                    <div class="row">
+                        <div class="col-md-8 mx-auto">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-list me-2"></i>Backup Recovery Codes
+                                    </h6>
+                                    <button class="btn btn-outline-light btn-sm" onclick="printCodes()">
+                                        <i class="fas fa-print me-1"></i>Print
+                                    </button>
+                                </div>
+                                <div class="card-body bg-light">
+                                    <div class="row" id="backup-codes-grid">
+                                        {% for code in backup_codes %}
+                                        <div class="col-6 mb-2">
+                                            <div class="p-2 border rounded bg-white">
+                                                <code class="text-dark fw-bold">{{ code }}</code>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <hr>
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                        <button class="btn btn-outline-primary" onclick="downloadCodes()">
+                                            <i class="fas fa-download me-2"></i>Download as Text
+                                        </button>
+                                        <button class="btn btn-outline-primary" onclick="copyCodes()">
+                                            <i class="fas fa-copy me-2"></i>Copy to Clipboard
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>No Backup Codes Available</h6>
+                        <p class="mb-0">
+                            There was an issue generating your backup codes. You can generate them from your profile page.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+                    
+                    <!-- Next Steps -->
+                    <h5><i class="fas fa-list-check me-2"></i>What's Next?</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card border-info h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title text-info">
+                                        <i class="fas fa-mobile-alt me-2"></i>Test Your Setup
+                                    </h6>
+                                    <p class="card-text small">
+                                        Log out and log back in to test your two-factor authentication setup.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-success h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title text-success">
+                                        <i class="fas fa-shield-check me-2"></i>Stay Secure
+                                    </h6>
+                                    <p class="card-text small">
+                                        Keep your authenticator device and backup codes safe and secure.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <a href="{{ url_for('auth.profile') }}" class="btn btn-primary">
+                            <i class="fas fa-user me-2"></i>Go to Profile
+                        </a>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-home me-2"></i>Go to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Print-only section -->
+            <div id="print-section" class="d-none">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h2>qPKI Backup Recovery Codes</h2>
+                    <p><strong>User:</strong> {{ user.full_name }} ({{ user.username }})</p>
+                    <p><strong>Generated:</strong> {{ current_date }}</p>
+                </div>
+                
+                <div style="border: 2px solid #000; padding: 20px; margin-bottom: 20px;">
+                    <h3>Backup Codes:</h3>
+                    {% if backup_codes %}
+                    <div style="font-family: monospace; font-size: 14px; line-height: 1.8;">
+                        {% for code in backup_codes %}
+                        <div style="margin: 5px 0;">{{ loop.index }}. {{ code }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div style="border-top: 1px solid #ccc; padding-top: 15px; font-size: 12px;">
+                    <h4>Important Instructions:</h4>
+                    <ul>
+                        <li>Each backup code can only be used once</li>
+                        <li>Use these codes if you lose access to your authenticator app</li>
+                        <li>Keep these codes in a secure location</li>
+                        <li>You can generate new codes from your profile page</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyCodes() {
+    {% if backup_codes %}
+    const codes = [{% for code in backup_codes %}'{{ code }}'{% if not loop.last %},{% endif %}{% endfor %}];
+    const codesText = 'qPKI Backup Recovery Codes for {{ user.username }}\n' +
+                     'Generated: ' + new Date().toLocaleString() + '\n\n' +
+                     codes.map((code, index) => `${index + 1}. ${code}`).join('\n') +
+                     '\n\nImportant: Each code can only be used once. Keep these codes secure!';
+    
+    navigator.clipboard.writeText(codesText).then(() => {
+        const button = event.target.closest('button');
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+        button.classList.add('btn-success');
+        button.classList.remove('btn-outline-primary');
+        
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy codes:', err);
+        alert('Failed to copy codes. Please copy them manually.');
+    });
+    {% endif %}
+}
+
+function downloadCodes() {
+    {% if backup_codes %}
+    const codes = [{% for code in backup_codes %}'{{ code }}'{% if not loop.last %},{% endif %}{% endfor %}];
+    const codesText = 'qPKI Backup Recovery Codes for {{ user.username }}\n' +
+                     'Generated: ' + new Date().toLocaleString() + '\n\n' +
+                     codes.map((code, index) => `${index + 1}. ${code}`).join('\n') +
+                     '\n\nImportant Instructions:\n' +
+                     '- Each backup code can only be used once\n' +
+                     '- Use these codes if you lose access to your authenticator app\n' +
+                     '- Keep these codes in a secure location\n' +
+                     '- You can generate new codes from your profile page\n';
+    
+    const blob = new Blob([codesText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'qpki-backup-codes-{{ user.username }}.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    {% endif %}
+}
+
+function printCodes() {
+    const printSection = document.getElementById('print-section');
+    const originalDisplay = printSection.style.display;
+    printSection.style.display = 'block';
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @media print {
+            body * { visibility: hidden; }
+            #print-section, #print-section * { visibility: visible; }
+            #print-section { position: absolute; left: 0; top: 0; width: 100%; }
+            .d-none { display: block !important; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    window.print();
+    
+    document.head.removeChild(style);
+    printSection.style.display = originalDisplay;
+}
+
+// Warn user about leaving the page without saving codes
+let codesSaved = false;
+
+function markCodesSaved() {
+    codesSaved = true;
+}
+
+window.addEventListener('beforeunload', function(e) {
+    if (!codesSaved && {{ backup_codes|length if backup_codes else 0 }} > 0) {
+        e.preventDefault();
+        e.returnValue = 'Make sure you have saved your backup codes before leaving this page!';
+        return e.returnValue;
+    }
+});
+
+// Mark codes as saved when user interacts with save buttons
+document.addEventListener('click', function(e) {
+    if (e.target.closest('button[onclick*="copy"]') || 
+        e.target.closest('button[onclick*="download"]') || 
+        e.target.closest('button[onclick*="print"]')) {
+        markCodesSaved();
+    }
+});
+</script>
+{% endblock %}

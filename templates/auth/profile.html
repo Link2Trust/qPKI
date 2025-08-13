@@ -34,7 +34,7 @@
                                 </span>
                                 {% endif %}
                                 
-                                {% if user.force_password_change or user.is_password_expired() %}
+                                {% if user.force_password_change or user.is_password_expired %}
                                 <span class="badge bg-warning mb-2">
                                     <i class="fas fa-exclamation-triangle"></i> Password Change Required
                                 </span>
@@ -140,24 +140,44 @@
                             
                             <div class="mb-3">
                                 <label class="form-label">Two-Factor Authentication</label>
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center mb-2">
                                     {% if user.two_factor_enabled %}
                                     <span class="badge bg-success me-2">
-                                        <i class="fas fa-check"></i> Enabled
+                                        <i class="fas fa-shield-alt"></i> Enabled
                                     </span>
-                                    <button class="btn btn-sm btn-outline-danger" disabled>
-                                        <i class="fas fa-times"></i> Disable 2FA
-                                    </button>
                                     {% else %}
-                                    <span class="badge bg-secondary me-2">
-                                        <i class="fas fa-times"></i> Disabled
+                                    <span class="badge bg-warning me-2">
+                                        <i class="fas fa-shield-alt"></i> Disabled
                                     </span>
-                                    <button class="btn btn-sm btn-outline-success" disabled>
-                                        <i class="fas fa-plus"></i> Enable 2FA
-                                    </button>
                                     {% endif %}
                                 </div>
-                                <small class="text-muted">Two-factor authentication (coming soon)</small>
+                                
+                                {% if user.two_factor_enabled %}
+                                <div class="d-grid gap-2 d-sm-flex">
+                                    <a href="{{ url_for('auth.view_backup_codes') }}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-key me-1"></i> Backup Codes
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#disableMfaModal">
+                                        <i class="fas fa-times me-1"></i> Disable 2FA
+                                    </button>
+                                </div>
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Your account is protected with two-factor authentication
+                                </small>
+                                {% else %}
+                                <div class="d-grid">
+                                    <a href="{{ url_for('auth.setup_mfa') }}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-plus me-1"></i> Enable Two-Factor Authentication
+                                    </a>
+                                </div>
+                                <small class="text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Enable 2FA to improve your account security
+                                </small>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -222,6 +242,54 @@
         </div>
     </div>
 </div>
+
+<!-- Disable MFA Modal -->
+{% if user.two_factor_enabled %}
+<div class="modal fade" id="disableMfaModal" tabindex="-1" aria-labelledby="disableMfaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="disableMfaModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Disable Two-Factor Authentication
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Warning</h6>
+                    <p class="mb-0">
+                        Disabling two-factor authentication will make your account less secure.
+                        Only disable 2FA if you're having issues with your authenticator app.
+                    </p>
+                </div>
+                
+                <form method="POST" action="{{ url_for('auth.disable_mfa') }}" id="disableMfaForm">
+                    <div class="mb-3">
+                        <label for="current_password_disable" class="form-label">Current Password</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="current_password_disable" 
+                               name="current_password" 
+                               required
+                               autocomplete="current-password">
+                        <div class="form-text">
+                            Enter your current password to confirm this action.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="submit" form="disableMfaForm" class="btn btn-danger">
+                    <i class="fas fa-shield-alt me-2"></i>Disable 2FA
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <style>
 .avatar-lg {

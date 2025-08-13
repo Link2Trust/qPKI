@@ -221,6 +221,10 @@ def log_activity(logger, activity_type: str, details: dict = None, level: str = 
     if details and 'description' in details:
         message += f" - {details['description']}"
     
+    # Include user information in the message if available
+    if details and 'user' in details and details['user'] and details['user'] != 'unknown':
+        message += f" [User: {details['user']}]"
+    
     log_level = getattr(logging, level.upper())
     logger.log(log_level, message, extra=extra_data)
 

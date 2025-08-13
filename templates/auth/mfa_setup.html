@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Two-Factor Authentication - qPKI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Setup Two-Factor Authentication
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if not show_qr %}
+                    <!-- Step 1: Introduction -->
+                    <div class="text-center mb-4">
+                        <i class="fas fa-mobile-alt fa-4x text-success mb-3"></i>
+                        <h5>Secure Your Account</h5>
+                        <p class="text-muted">
+                            Add an extra layer of security to your qPKI account with two-factor authentication.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>What you'll need:</h6>
+                        <ul class="mb-0">
+                            <li>A smartphone or tablet</li>
+                            <li>An authenticator app like:
+                                <ul class="mt-2">
+                                    <li><strong>Google Authenticator</strong> (iOS/Android)</li>
+                                    <li><strong>Microsoft Authenticator</strong> (iOS/Android)</li>
+                                    <li><strong>Authy</strong> (iOS/Android/Desktop)</li>
+                                    <li><strong>1Password</strong> (Premium)</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="start_setup">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-play me-2"></i>Start Setup
+                            </button>
+                        </form>
+                    </div>
+                    
+                    {% else %}
+                    <!-- Step 2: QR Code and Setup -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-qrcode me-2"></i>Step 1: Scan QR Code</h5>
+                            <p class="text-muted">
+                                Open your authenticator app and scan this QR code:
+                            </p>
+                            
+                            <div class="text-center mb-3">
+                                <div class="border border-2 border-primary rounded p-3 d-inline-block">
+                                    <img src="{{ url_for('auth.mfa_qrcode') }}" 
+                                         alt="QR Code for MFA Setup" 
+                                         class="img-fluid"
+                                         style="max-width: 200px;">
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-exclamation-triangle me-2"></i>Can't scan?</h6>
+                                <p class="mb-2">Manually enter this key in your authenticator app:</p>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control font-monospace" 
+                                           value="{{ secret_key }}" 
+                                           id="secret-key"
+                                           readonly>
+                                    <button class="btn btn-outline-secondary" 
+                                            type="button" 
+                                            onclick="copySecretKey()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    Account name: <strong>{{ user.email }}</strong><br>
+                                    Issuer: <strong>qPKI Certificate Authority</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-check-circle me-2"></i>Step 2: Verify Setup</h5>
+                            <p class="text-muted">
+                                Enter the 6-digit code from your authenticator app to complete setup:
+                            </p>
+                            
+                            <form method="POST" autocomplete="off">
+                                <input type="hidden" name="action" value="verify_setup">
+                                
+                                <div class="mb-3">
+                                    <label for="verification_code" class="form-label">Verification Code</label>
+                                    <input type="text" 
+                                           class="form-control form-control-lg text-center" 
+                                           id="verification_code" 
+                                           name="verification_code" 
+                                           maxlength="6"
+                                           placeholder="000000"
+                                           autocomplete="off"
+                                           inputmode="numeric"
+                                           pattern="[0-9]{6}"
+                                           required
+                                           autofocus>
+                                </div>
+
+                                <div class="d-grid mb-3">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-check me-2"></i>Complete Setup
+                                    </button>
+                                </div>
+                            </form>
+
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-lightbulb me-2"></i>Tips:</h6>
+                                <ul class="mb-0 small">
+                                    <li>The code changes every 30 seconds</li>
+                                    <li>Make sure your device's time is accurate</li>
+                                    <li>You'll receive backup codes after setup</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <hr>
+                    <div class="text-center">
+                        <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Notice -->
+            <div class="card mt-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Security Notice
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Two-factor authentication significantly improves your account security
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            You'll need your authenticator app each time you log in
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Keep your backup codes in a safe place for account recovery
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            Don't lose access to your authenticator device and backup codes
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copySecretKey() {
+    const secretKey = document.getElementById('secret-key');
+    secretKey.select();
+    secretKey.setSelectionRange(0, 99999);
+    
+    try {
+        document.execCommand('copy');
+        const button = event.target.closest('button');
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    } catch (err) {
+        console.error('Failed to copy secret key:', err);
+    }
+}
+
+// Auto-submit verification form when 6 digits are entered
+{% if show_qr %}
+document.getElementById('verification_code').addEventListener('input', function() {
+    const code = this.value.replace(/\D/g, '');
+    this.value = code;
+    
+    if (code.length === 6) {
+        setTimeout(() => {
+            this.form.submit();
+        }, 500);
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

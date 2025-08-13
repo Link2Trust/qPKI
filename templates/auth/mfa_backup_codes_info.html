@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Backup Codes - qPKI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-key me-2"></i>Backup Recovery Codes
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-shield-alt fa-3x text-info mb-3"></i>
+                        <h5>Backup Code Status</h5>
+                        <p class="text-muted">
+                            These codes can be used to access your account if you lose your authenticator device.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Current Status</h6>
+                        <p class="mb-2">
+                            <strong>Remaining backup codes:</strong> 
+                            <span class="badge bg-primary fs-6">{{ backup_codes_count }}</span>
+                        </p>
+                        {% if backup_codes_count > 5 %}
+                        <p class="mb-0 text-success">
+                            <i class="fas fa-check-circle me-1"></i>
+                            You have plenty of backup codes remaining.
+                        </p>
+                        {% elif backup_codes_count > 2 %}
+                        <p class="mb-0 text-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            You have a few backup codes left. Consider regenerating new ones soon.
+                        </p>
+                        {% elif backup_codes_count > 0 %}
+                        <p class="mb-0 text-danger">
+                            <i class="fas fa-exclamation-circle me-1"></i>
+                            You're running low on backup codes! Generate new ones immediately.
+                        </p>
+                        {% else %}
+                        <p class="mb-0 text-danger">
+                            <i class="fas fa-times-circle me-1"></i>
+                            You have no backup codes left! Generate new ones now.
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Regenerate Backup Codes Form -->
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0">
+                                <i class="fas fa-sync-alt me-2"></i>Generate New Backup Codes
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                Generate a new set of 8 backup codes. 
+                                <strong>This will invalidate all existing backup codes.</strong>
+                            </p>
+                            
+                            <form method="POST" action="{{ url_for('auth.regenerate_backup_codes') }}" 
+                                  onsubmit="return confirmRegenerate()">
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">Current Password</label>
+                                    <input type="password" 
+                                           class="form-control" 
+                                           id="current_password" 
+                                           name="current_password" 
+                                           required
+                                           autocomplete="current-password">
+                                    <div class="form-text">
+                                        Enter your current password to confirm this action.
+                                    </div>
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-sync-alt me-2"></i>Generate New Backup Codes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Information Section -->
+                    <h6><i class="fas fa-question-circle me-2"></i>About Backup Codes</h6>
+                    <ul class="list-unstyled small">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Each backup code can only be used once
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Use backup codes when your authenticator app is unavailable
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Backup codes are 8 characters long (format: ABCD-1234)
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Keep your backup codes in a secure, offline location
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            Generating new codes invalidates all previous codes
+                        </li>
+                    </ul>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                        <a href="{{ url_for('auth.profile') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Contact Card -->
+            <div class="card mt-4 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Lost Access?
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-2">
+                        If you've lost access to both your authenticator app and backup codes:
+                    </p>
+                    <ul class="small mb-0">
+                        <li>Contact your system administrator immediately</li>
+                        <li>Verify your identity through alternative means</li>
+                        <li>Request MFA reset from an admin user</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmRegenerate() {
+    const remaining = {{ backup_codes_count }};
+    let message = 'Are you sure you want to generate new backup codes?\n\n';
+    
+    if (remaining > 0) {
+        message += `This will invalidate your ${remaining} remaining backup code${remaining !== 1 ? 's' : ''}.`;
+    }
+    
+    message += '\n\nYou will need to save the new backup codes in a secure location.';
+    
+    return confirm(message);
+}
+
+// Focus on password field when page loads
+window.addEventListener('load', function() {
+    document.getElementById('current_password').focus();
+});
+</script>
+{% endblock %}
