@@ -18,11 +18,12 @@ import traceback
 # Add the source directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
-from qpki.crypto import FlexibleHybridCrypto, ECCCrypto, RSACrypto, DilithiumCrypto
+from qpki.crypto import FlexibleHybridCrypto, ECCCrypto, RSACrypto, DilithiumCrypto, PQCCrypto
 from qpki.email_notifier import EmailNotificationService
 from qpki.logging_config import setup_logging, get_web_logger, log_activity
 from qpki.database import DatabaseManager, DatabaseConfig
 from qpki.auth import AuthenticationManager, login_required, admin_required, auth_bp
+from qpki.utils.enhanced_cert_formats import EnhancedCertificateFormatConverter
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('QPKI_SECRET_KEY', 'qpki-development-key-change-in-production')
@@ -684,7 +685,7 @@ def create_cert():
                 }
             else:  # ECC
                 ecc_curve = request.form.get('classic_ecc_curve', 'secp256r1')
-                crypto_instance = ECCCrypto(curve=ecc_curve)
+                crypto_instance = ECCCrypto(curve_name=ecc_curve)
                 cert_keys = crypto_instance.generate_key_pair()
                 algorithm_info = {
                     'type': f'ECC-{ecc_curve}',
@@ -696,6 +697,16 @@ def create_cert():
             
             # For classic certificates, we need to adapt to CA signing
             # Use the CA's actual Dilithium variant for proper signing
+            ca_crypto_info = _get_ca_crypto_info(ca_data)
+            ca_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
+        elif cert_type == 'pqc':
+            # Pure Post-Quantum Certificate - use only Dilithium
+            dilithium_variant = int(request.form.get('pqc_dilithium_variant', 3))
+            crypto_instance = PQCCrypto(dilithium_variant=dilithium_variant)
+            cert_keys = crypto_instance.generate_key_pair()
+            algorithm_info = crypto_instance.get_algorithm_info()
+            
+            # For PQC certificates, still need CA for signing (CA can sign any cert type)
             ca_crypto_info = _get_ca_crypto_info(ca_data)
             ca_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
         else:
@@ -754,6 +765,22 @@ def create_cert():
                 cert_private_keys = {
                     "ecc_private_key": crypto_instance.serialize_private_key(cert_keys[0]).decode('utf-8')
                 }
+        elif cert_type == 'pqc':
+            # Pure Post-Quantum certificate - store PQC-specific info
+            cert_data_obj["cryptographic_info"] = algorithm_info
+            
+            # Store Dilithium public key
+            dilithium_public_key = crypto_instance.dilithium_crypto.serialize_public_key(cert_keys.dilithium_public)
+            cert_data_obj["public_keys"] = {"dilithium_public_key": dilithium_public_key}
+            
+            # Generate PQC fingerprint
+            cert_data_obj["fingerprint"] = crypto_instance.get_public_key_fingerprint(cert_keys)
+            
+            # Serialize PQC private keys
+            cert_private_keys = {
+                "dilithium_private_key": crypto_instance.dilithium_crypto.serialize_private_key(cert_keys.dilithium_private),
+                "dilithium_variant": cert_keys.variant
+            }
         else:
             # Hybrid certificate - use existing hybrid logic
             cert_data_obj["cryptographic_info"] = algorithm_info
@@ -899,18 +926,107 @@ def view_cert(filename):
         return redirect(url_for('list_certs'))
 
 @app.route('/download/<cert_type>/<filename>')
+@app.route('/download/<cert_type>/<filename>/<format_type>')
 @login_required('cert.view')
-def download_cert(cert_type, filename):
-    """Download certificate or CA in JSON format."""
+def download_cert(cert_type, filename, format_type='json'):
+    """Download certificate or CA in various formats."""
     try:
+        # Log download request for debugging
+        logger.info(f"Download request: cert_type={cert_type}, filename={filename}, format_type={format_type}")
+        
         if cert_type == 'ca':
             filepath = os.path.join(CA_STORAGE_DIR, filename)
         else:  # certificate
             filepath = os.path.join(CERT_STORAGE_DIR, filename)
         
+        # Check if file exists
+        if not os.path.exists(filepath):
+            flash(f'File not found: {filename}', 'error')
+            return redirect(url_for('list_certs'))
+        
+        # For JSON format or CA files, return as-is
+        if format_type == 'json' or cert_type == 'ca':
+            logger.info(f"Returning file as JSON: {filepath}")
+            return send_file(filepath, as_attachment=True, download_name=filename)
+        
+        # For certificates, check if format conversion is requested
+        if format_type in ['pem', 'der', 'crt', 'cer']:
+            logger.info(f"Format conversion requested: {format_type}")
+            
+            # Load certificate data
+            with open(filepath, 'r') as f:
+                cert_data = json.load(f)
+            
+            logger.info(f"Certificate data loaded, keys: {list(cert_data.keys())}")
+            
+            # Initialize format converter
+            converter = EnhancedCertificateFormatConverter()
+            
+            # Detect certificate type
+            cert_type_detected = converter.detect_certificate_type(cert_data)
+            logger.info(f"Detected certificate type: {cert_type_detected}")
+            
+            if cert_type_detected == 'classical':
+                logger.info(f"Converting classical certificate to {format_type}")
+                
+                # Convert classical certificate to X.509 format
+                cert_format = 'PEM' if format_type in ['pem', 'crt'] else 'DER'
+                x509_data = converter.create_x509_from_classical(cert_data, cert_format)
+                
+                if x509_data:
+                    logger.info(f"X.509 conversion successful, data length: {len(x509_data)}")
+                    
+                    # Determine file extension and content type
+                    if format_type in ['pem', 'crt']:
+                        file_ext = '.crt' if format_type == 'crt' else '.pem'
+                        content_type = 'application/x-pem-file'
+                    else:  # der, cer
+                        file_ext = '.cer' if format_type == 'cer' else '.der'
+                        content_type = 'application/x-x509-ca-cert'
+                    
+                    # Create download filename
+                    base_name = filename.replace('.json', '')
+                    download_filename = f"{base_name}{file_ext}"
+                    
+                    logger.info(f"Sending converted certificate: {download_filename}")
+                    
+                    # Create temporary file for download
+                    import io
+                    
+                    if cert_format == 'PEM':
+                        # Return PEM as text
+                        return send_file(
+                            io.BytesIO(x509_data.encode('utf-8')),
+                            as_attachment=True,
+                            download_name=download_filename,
+                            mimetype=content_type
+                        )
+                    else:
+                        # Return DER as binary
+                        return send_file(
+                            io.BytesIO(x509_data),
+                            as_attachment=True,
+                            download_name=download_filename,
+                            mimetype=content_type
+                        )
+                else:
+                    logger.error("X.509 conversion failed")
+                    flash('Unable to convert certificate to requested format', 'error')
+                    return redirect(url_for('list_certs'))
+            else:
+                logger.info(f"Non-classical certificate ({cert_type_detected}), returning as JSON")
+                # For hybrid and PQC certificates, only JSON format is supported
+                flash(f'{cert_type_detected.title()} certificates can only be downloaded in JSON format', 'warning')
+                return send_file(filepath, as_attachment=True, download_name=filename)
+        
+        # Default to JSON format
+        logger.info(f"Defaulting to JSON format for: {filepath}")
         return send_file(filepath, as_attachment=True, download_name=filename)
+        
     except Exception as e:
+        logger.error(f"Error in download_cert: {str(e)}", exc_info=True)
         flash(f'Error downloading file: {str(e)}', 'error')
+        traceback.print_exc()
         return redirect(url_for('index'))
 
 @app.route('/api/algorithms')

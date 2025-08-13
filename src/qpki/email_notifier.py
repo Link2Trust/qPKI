@@ -354,9 +354,23 @@ This is an automated message from qPKI.
         not_after_str = validity.get('not_after', '')
         
         try:
-            not_after = datetime.fromisoformat(not_after_str.replace('Z', '+00:00'))
-        except:
-            self.logger.error(f"Invalid expiry date format in {filename}: {not_after_str}")
+            # Handle different date formats properly
+            if not_after_str:
+                # If already has timezone info, just remove trailing Z if present
+                if '+' in not_after_str or '-' in not_after_str[-6:]:
+                    if not_after_str.endswith('Z'):
+                        not_after_str = not_after_str[:-1]
+                elif not_after_str.endswith('Z'):
+                    # Only Z at the end, replace with UTC offset
+                    not_after_str = not_after_str.replace('Z', '+00:00')
+                
+                not_after = datetime.fromisoformat(not_after_str)
+            else:
+                self.logger.error(f"Empty expiry date in {filename}")
+                result['errors'] += 1
+                return result
+        except Exception as e:
+            self.logger.error(f"Invalid expiry date format in {filename}: {not_after_str} - {e}")
             result['errors'] += 1
             return result
         
