@@ -6,7 +6,7 @@ Flask-based web interface for managing hybrid post-quantum certificates
 with support for both RSA and ECC classical algorithms combined with Dilithium.
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, g, session
 import os
 import sys
 import json
@@ -21,13 +21,77 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'
 from qpki.crypto import FlexibleHybridCrypto, ECCCrypto, RSACrypto, DilithiumCrypto
 from qpki.email_notifier import EmailNotificationService
 from qpki.logging_config import setup_logging, get_web_logger, log_activity
+from qpki.database import DatabaseManager, DatabaseConfig
+from qpki.auth import AuthenticationManager, login_required, admin_required, auth_bp
 
 app = Flask(__name__)
-app.secret_key = 'qpki-development-key-change-in-production'
+app.secret_key = os.environ.get('QPKI_SECRET_KEY', 'qpki-development-key-change-in-production')
 
 # Initialize centralized logging
 setup_logging(log_level="INFO", console_output=True)
 logger = get_web_logger()
+
+# Initialize database and authentication
+try:
+    db_config = DatabaseConfig.from_env()
+    
+    # Try to initialize the database
+    db_manager = DatabaseManager(db_config)
+    
+    # Test connection
+    if not db_manager.check_connection():
+        raise ConnectionError("Could not connect to configured database")
+    
+    app.db_manager = db_manager
+    
+    # Initialize authentication manager
+    auth_manager = AuthenticationManager(db_manager)
+    app.auth_manager = auth_manager
+    
+    # Create database tables
+    db_manager.migrate_database()
+    
+    # Create default admin user if no users exist
+    success, message = auth_manager.create_default_admin()
+    if success:
+        logger.info(f"Default admin user created: {message}")
+    
+except Exception as e:
+    logger.warning(f"Database initialization failed, trying SQLite fallback: {e}")
+    
+    # Try SQLite as fallback
+    try:
+        # Force SQLite configuration
+        import os
+        os.environ['QPKI_DB_TYPE'] = 'sqlite'
+        db_config = DatabaseConfig.from_env()
+        db_manager = DatabaseManager(db_config)
+        
+        if db_manager.check_connection():
+            app.db_manager = db_manager
+            auth_manager = AuthenticationManager(db_manager)
+            app.auth_manager = auth_manager
+            
+            # Create database tables
+            db_manager.migrate_database()
+            
+            # Create default admin user if no users exist
+            success, message = auth_manager.create_default_admin()
+            if success:
+                logger.info(f"SQLite fallback successful - {message}")
+            else:
+                logger.info(f"SQLite fallback successful - {message}")
+        else:
+            raise ConnectionError("SQLite fallback failed")
+            
+    except Exception as sqlite_error:
+        logger.error(f"SQLite fallback also failed: {sqlite_error}")
+        logger.warning("Running in file-based mode without authentication")
+        app.db_manager = None
+        app.auth_manager = None
+
+# Register authentication blueprint
+app.register_blueprint(auth_bp)
 
 # Global configuration
 CERT_STORAGE_DIR = os.path.join(os.path.dirname(__file__), 'certificates')
@@ -48,6 +112,7 @@ log_activity(logger, "web_app_startup", {
 })
 
 @app.route('/')
+@login_required()
 def index():
     """Main dashboard showing system overview."""
     try:
@@ -55,12 +120,19 @@ def index():
         ca_count = len([f for f in os.listdir(CA_STORAGE_DIR) if f.endswith('.json')])
         cert_count = len([f for f in os.listdir(CERT_STORAGE_DIR) if f.endswith('.json')])
         
-        return render_template('index.html', ca_count=ca_count, cert_count=cert_count)
+        # Get user info
+        user = g.current_user
+        
+        return render_template('index.html', 
+                             ca_count=ca_count, 
+                             cert_count=cert_count,
+                             user=user)
     except Exception as e:
         flash(f'Error loading dashboard: {str(e)}', 'error')
-        return render_template('index.html', ca_count=0, cert_count=0)
+        return render_template('index.html', ca_count=0, cert_count=0, user=g.current_user)
 
 @app.route('/create_ca')
+@login_required('ca.create')
 def create_ca_form():
     """Show form for creating a new Certificate Authority."""
     # Get available cryptographic options
@@ -317,6 +389,7 @@ def add_certificate_to_crl(ca_filename, cert_serial, revocation_reason='unspecif
     return True
 
 @app.route('/create_ca', methods=['POST'])
+@login_required('ca.create')
 def create_ca():
     """Create a new Certificate Authority (root or subordinate)."""
     try:
@@ -487,6 +560,7 @@ def create_ca():
         return redirect(url_for('create_ca_form'))
 
 @app.route('/cas')
+@login_required('ca.view')
 def list_cas():
     """List all Certificate Authorities."""
     cas = []
@@ -524,6 +598,7 @@ def list_cas():
     return render_template('list_cas.html', cas=cas)
 
 @app.route('/ca/<filename>')
+@login_required('ca.view')
 def view_ca(filename):
     """View detailed information about a specific CA."""
     try:
@@ -536,6 +611,7 @@ def view_ca(filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/create_cert')
+@login_required('cert.create')
 def create_cert_form():
     """Show form for creating a new certificate."""
     # Load available CAs
@@ -561,6 +637,7 @@ def create_cert_form():
     return render_template('create_cert.html', cas=cas)
 
 @app.route('/create_cert', methods=['POST'])
+@login_required('cert.create')
 def create_cert():
     """Create a new certificate signed by a CA."""
     try:
@@ -761,6 +838,7 @@ def create_cert():
         return redirect(url_for('create_cert_form'))
 
 @app.route('/certificates')
+@login_required('cert.view')
 def list_certs():
     """List all certificates."""
     certs = []
@@ -801,6 +879,7 @@ def list_certs():
     return render_template('list_certs.html', certs=certs)
 
 @app.route('/certificate/<filename>')
+@login_required('cert.view')
 def view_cert(filename):
     """View detailed information about a specific certificate."""
     try:
@@ -820,6 +899,7 @@ def view_cert(filename):
         return redirect(url_for('list_certs'))
 
 @app.route('/download/<cert_type>/<filename>')
+@login_required('cert.view')
 def download_cert(cert_type, filename):
     """Download certificate or CA in JSON format."""
     try:
@@ -844,6 +924,7 @@ def api_algorithms():
     })
 
 @app.route('/revoke_certificate/<filename>', methods=['POST'])
+@login_required('cert.revoke')
 def revoke_certificate(filename):
     """Revoke a certificate and add it to the CA's CRL."""
     try:
@@ -891,6 +972,7 @@ def revoke_certificate(filename):
         return redirect(url_for('list_certs'))
 
 @app.route('/crl/<ca_filename>')
+@login_required('crl.view')
 def view_crl(ca_filename):
     """View CRL for a specific CA."""
     try:
@@ -920,6 +1002,7 @@ def view_crl(ca_filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/generate_crl/<ca_filename>', methods=['POST'])
+@login_required('crl.generate')
 def generate_crl(ca_filename):
     """Generate/update CRL for a specific CA."""
     try:
@@ -1002,6 +1085,7 @@ def generate_crl(ca_filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/download_crl/<ca_filename>')
+@login_required('crl.view')
 def download_crl(ca_filename):
     """Download CRL for a specific CA."""
     try:
@@ -1018,6 +1102,7 @@ def download_crl(ca_filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/api/verify/<cert_type>/<filename>')
+@login_required('cert.view')
 def api_verify(cert_type, filename):
     """API endpoint to verify a certificate or CA signature."""
     try:
@@ -1048,6 +1133,7 @@ def api_verify(cert_type, filename):
 # Email Notification Routes
 
 @app.route('/notifications')
+@login_required('notifications.view')
 def notification_settings():
     """Show email notification configuration page."""
     try:
@@ -1059,6 +1145,7 @@ def notification_settings():
         return redirect(url_for('index'))
 
 @app.route('/notifications/settings', methods=['POST'])
+@login_required('notifications.view')
 def update_notification_settings():
     """Update email notification settings."""
     try:
@@ -1101,6 +1188,7 @@ def update_notification_settings():
         return redirect(url_for('notification_settings'))
 
 @app.route('/notifications/test', methods=['POST'])
+@login_required('notifications.view')
 def test_email_notification():
     """Send a test email notification."""
     try:
@@ -1124,6 +1212,7 @@ def test_email_notification():
         return redirect(url_for('notification_settings'))
 
 @app.route('/notifications/check', methods=['POST'])
+@login_required('notifications.view')
 def check_notifications_now():
     """Manually trigger certificate expiration check."""
     try:
@@ -1143,6 +1232,7 @@ def check_notifications_now():
         return redirect(url_for('notification_settings'))
 
 @app.route('/notifications/history')
+@login_required('notifications.view')
 def notification_history():
     """View notification history."""
     try:
@@ -1167,10 +1257,50 @@ def internal_error(error):
                          error_code=500, 
                          error_message="Internal server error"), 500
 
+# Add context processor for authentication
+@app.context_processor
+def inject_auth_context():
+    """Inject authentication context into all templates."""
+    if hasattr(g, 'current_user') and g.current_user:
+        return {
+            'current_user': g.current_user,
+            'is_authenticated': True
+        }
+    return {
+        'current_user': None,
+        'is_authenticated': False
+    }
+
+# Session cleanup before each request
+@app.before_request
+def cleanup_sessions():
+    """Clean up expired sessions periodically."""
+    if app.auth_manager and hasattr(request, 'endpoint'):
+        # Only cleanup on main page requests, not for static files or API calls
+        if request.endpoint and not request.endpoint.startswith(('static', 'api')):
+            try:
+                app.auth_manager.cleanup_expired_sessions()
+            except Exception as e:
+                logger.debug(f"Session cleanup error: {e}")
+
 if __name__ == '__main__':
     print("Starting qPKI Web Application...")
     print(f"Certificate storage: {CERT_STORAGE_DIR}")
     print(f"CA storage: {CA_STORAGE_DIR}")
+    
+    if app.auth_manager:
+        print("✓ Database authentication enabled")
+        try:
+            # Try to create default admin if needed
+            success, message = app.auth_manager.create_default_admin()
+            if success:
+                print(f"  {message}")
+        except:
+            pass
+    else:
+        print("⚠ File-based mode (no authentication)")
+    
     print("Access the application at: http://localhost:9090")
+    print("Login page: http://localhost:9090/auth/login")
     
     app.run(debug=True, host='0.0.0.0', port=9090)

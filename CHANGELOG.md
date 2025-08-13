@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2024-08-13
+
+### Added
+- **Complete Authentication & User Management System**
+  - Role-based access control with Admin, Operator, Auditor, and Viewer roles
+  - Secure user authentication with bcrypt password hashing
+  - Session management with secure tokens and automatic cleanup
+  - Password security policies with strength validation and expiration
+  - Account security features (login attempt limiting, account lockout)
+  - Forced password changes and admin-initiated password resets
+  - User profile management with self-service password changes
+
+- **Database User Management**
+  - SQLAlchemy models for Users, UserSessions, and APIKeys
+  - Complete user lifecycle management (create, read, update, delete)
+  - User status tracking and account activation/deactivation
+  - Session monitoring and management capabilities
+  - Audit trail for all authentication and user management events
+
+- **Web Interface Authentication**
+  - Professional login page with client-side validation
+  - User profile management interface
+  - Admin panel for complete user lifecycle management
+  - Session monitoring and active session management
+  - Password strength indicators and security warnings
+  - Role-based navigation and feature access control
+
+- **Authentication Templates**
+  - `templates/auth/login.html`: Clean, responsive login interface
+  - `templates/auth/profile.html`: User profile management
+  - `templates/auth/change_password.html`: Password change with strength validation
+  - `templates/auth/list_users.html`: Admin user management interface
+  - `templates/auth/create_user.html`: User creation form
+  - Integration with existing base template for seamless navigation
+
+- **Utility Scripts**
+  - `scripts/init_database.py`: Database initialization with default admin user
+  - `scripts/reset_password.py`: Password reset utility with CLI interface
+  - User management scripts for administrative tasks
+
+- **Security Enhancements**
+  - Session validation and cleanup mechanisms
+  - CSRF protection ready infrastructure
+  - Secure password handling throughout the application
+  - Authentication decorators for route protection
+  - Permission-based access control system
+
+### Enhanced
+- **Application Security**: All routes now protected with authentication
+- **Database Integration**: Extended database models to support user management
+- **Web Interface**: Complete integration of authentication into existing UI
+- **Configuration**: Environment-based configuration for authentication settings
+- **Documentation**: Updated README with authentication system documentation
+
+### Fixed
+- **Session Management**: Resolved redirect loops in authentication flow
+- **Password Validation**: Fixed forced password change validation logic
+- **Database Connections**: Improved SQLite fallback handling
+- **Template Integration**: Seamless integration of authentication with existing UI
+
 ## [1.3.0] - 2024-08-11
 
 ### Added

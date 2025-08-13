@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - qPKI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Profile Header -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-circle"></i> My Profile
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <div class="avatar-lg bg-primary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto mb-3">
+                                <i class="fas fa-user fa-3x"></i>
+                            </div>
+                            <h5>{{ user.full_name }}</h5>
+                            <p class="text-muted">{{ user.role.title() }}</p>
+                            
+                            <div class="mt-3">
+                                <span class="badge bg-{{ 'success' if user.is_active else 'secondary' }} mb-2">
+                                    <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
+                                    {{ 'Active' if user.is_active else 'Inactive' }}
+                                </span>
+                                
+                                {% if user.two_factor_enabled %}
+                                <span class="badge bg-info mb-2">
+                                    <i class="fas fa-shield-alt"></i> 2FA Enabled
+                                </span>
+                                {% endif %}
+                                
+                                {% if user.force_password_change or user.is_password_expired() %}
+                                <span class="badge bg-warning mb-2">
+                                    <i class="fas fa-exclamation-triangle"></i> Password Change Required
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-9">
+                            <form method="POST" action="{{ url_for('auth.update_profile') }}">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="full_name" 
+                                                   name="full_name" 
+                                                   value="{{ user.full_name or '' }}"
+                                                   required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                            <input type="email" 
+                                                   class="form-control" 
+                                                   id="email" 
+                                                   name="email" 
+                                                   value="{{ user.email or '' }}"
+                                                   required>
+                                            {% if not user.email_verified %}
+                                            <small class="text-warning">
+                                                <i class="fas fa-exclamation-triangle"></i> Email not verified
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="department" class="form-label">Department</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="department" 
+                                                   name="department" 
+                                                   value="{{ user.department or '' }}">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="phone" class="form-label">Phone Number</label>
+                                            <input type="tel" 
+                                                   class="form-control" 
+                                                   id="phone" 
+                                                   name="phone" 
+                                                   value="{{ user.phone or '' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Update Profile
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Account Security -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-shield-alt"></i> Account Security
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted">••••••••••••</span>
+                                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-sm btn-outline-primary ms-3">
+                                        <i class="fas fa-key"></i> Change Password
+                                    </a>
+                                </div>
+                                {% if user.password_last_changed %}
+                                <small class="text-muted">
+                                    Last changed: {{ user.password_last_changed.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Two-Factor Authentication</label>
+                                <div class="d-flex align-items-center">
+                                    {% if user.two_factor_enabled %}
+                                    <span class="badge bg-success me-2">
+                                        <i class="fas fa-check"></i> Enabled
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-danger" disabled>
+                                        <i class="fas fa-times"></i> Disable 2FA
+                                    </button>
+                                    {% else %}
+                                    <span class="badge bg-secondary me-2">
+                                        <i class="fas fa-times"></i> Disabled
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-success" disabled>
+                                        <i class="fas fa-plus"></i> Enable 2FA
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">Two-factor authentication (coming soon)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Account Information -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle"></i> Account Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <div class="form-control-plaintext">
+                                    <strong>{{ user.username }}</strong>
+                                </div>
+                                <small class="text-muted">Username cannot be changed</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">User ID</label>
+                                <div class="form-control-plaintext">
+                                    <code>{{ user.user_id }}</code>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Role</label>
+                                <div class="form-control-plaintext">
+                                    <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'success' if user.role == 'operator' else 'info' if user.role == 'auditor' else 'secondary' }}">
+                                        <i class="fas fa-{{ 'user-shield' if user.role == 'admin' else 'user-cog' if user.role == 'operator' else 'user-eye' if user.role == 'auditor' else 'user' }}"></i>
+                                        {{ user.role.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Member Since</label>
+                                <div class="form-control-plaintext">
+                                    {{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'Unknown' }}
+                                </div>
+                            </div>
+                            
+                            {% if user.last_login %}
+                            <div class="mb-3">
+                                <label class="form-label">Last Login</label>
+                                <div class="form-control-plaintext">
+                                    {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                    {% if user.last_login_ip %}
+                                    <br><small class="text-muted">from {{ user.last_login_ip }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-lg {
+    width: 100px;
+    height: 100px;
+}
+
+.form-control-plaintext {
+    padding-left: 0;
+    font-size: 0.95rem;
+}
+</style>
+{% endblock %}

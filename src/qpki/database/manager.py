@@ -120,6 +120,10 @@ class DatabaseManager:
         except Exception:
             return False
     
+    def is_connected(self) -> bool:
+        """Alias for check_connection for compatibility."""
+        return self.check_connection()
+    
     def get_database_info(self) -> Dict[str, Any]:
         """Get database information and statistics."""
         try:

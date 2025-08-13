@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - qPKI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-users"></i> User Management</h2>
+                    <p class="text-muted">Manage system users and access controls</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('auth.create_user') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Add User
+                    </a>
+                    <a href="{{ url_for('auth.list_sessions') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-clock"></i> Active Sessions
+                    </a>
+                </div>
+            </div>
+
+            <!-- User Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-0">{{ stats.total }}</h3>
+                                    <p class="mb-0">Total Users</p>
+                                </div>
+                                <i class="fas fa-users fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-0">{{ stats.active }}</h3>
+                                    <p class="mb-0">Active Users</p>
+                                </div>
+                                <i class="fas fa-user-check fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-0">{{ stats.admins }}</h3>
+                                    <p class="mb-0">Administrators</p>
+                                </div>
+                                <i class="fas fa-user-shield fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-0">{{ stats.inactive }}</h3>
+                                    <p class="mb-0">Inactive Users</p>
+                                </div>
+                                <i class="fas fa-user-times fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> User List
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Department</th>
+                                    <th>Last Login</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center text-white me-3">
+                                                {{ user.full_name[0].upper() if user.full_name else user.username[0].upper() }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ user.full_name }}</div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-at"></i> {{ user.username }} • {{ user.email }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'success' if user.role == 'operator' else 'info' if user.role == 'auditor' else 'secondary' }}">
+                                            <i class="fas fa-{{ 'user-shield' if user.role == 'admin' else 'user-cog' if user.role == 'operator' else 'user-eye' if user.role == 'auditor' else 'user' }}"></i>
+                                            {{ user.role.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle"></i> Active
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-times-circle"></i> Inactive
+                                            </span>
+                                        {% endif %}
+                                        
+                                        {% if user.is_account_locked() %}
+                                            <span class="badge bg-danger ms-1">
+                                                <i class="fas fa-lock"></i> Locked
+                                            </span>
+                                        {% endif %}
+                                        
+                                        {% if user.force_password_change %}
+                                            <span class="badge bg-warning ms-1">
+                                                <i class="fas fa-key"></i> Password Reset Required
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ user.department if user.department else '-' }}
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                            <div>
+                                                <i class="fas fa-clock text-muted"></i>
+                                                {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                            </div>
+                                            {% if user.last_login_ip %}
+                                                <small class="text-muted">
+                                                    <i class="fas fa-map-marker-alt"></i> {{ user.last_login_ip }}
+                                                </small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('auth.view_user', user_id=user.id) }}" 
+                                               class="btn btn-outline-primary" 
+                                               title="View User">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('auth.edit_user', user_id=user.id) }}" 
+                                               class="btn btn-outline-secondary" 
+                                               title="Edit User">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% if user.id != current_user.id %}
+                                            <button class="btn btn-outline-danger" 
+                                                    title="Delete User"
+                                                    onclick="confirmDelete({{ user.id }}, '{{ user.username }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5>No Users Found</h5>
+                        <p class="text-muted">No users have been created yet.</p>
+                        <a href="{{ url_for('auth.create_user') }}" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Create First User
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm User Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Warning!</strong> This action cannot be undone.
+                </div>
+                <p>Are you sure you want to delete the user <strong id="deleteUsername"></strong>?</p>
+                <p>This will:</p>
+                <ul>
+                    <li>Permanently remove the user account</li>
+                    <li>Invalidate all active sessions</li>
+                    <li>Remove any associated API keys</li>
+                </ul>
+                
+                <div class="mt-3">
+                    <label for="confirmInput" class="form-label">
+                        Type <strong>DELETE</strong> to confirm:
+                    </label>
+                    <input type="text" class="form-control" id="confirmInput" placeholder="DELETE">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" onclick="deleteUser()" disabled>
+                    <i class="fas fa-trash"></i> Delete User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let userToDelete = null;
+
+function confirmDelete(userId, username) {
+    userToDelete = userId;
+    document.getElementById('deleteUsername').textContent = username;
+    document.getElementById('confirmInput').value = '';
+    document.getElementById('confirmDeleteBtn').disabled = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+function deleteUser() {
+    if (!userToDelete) return;
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/auth/users/${userToDelete}/delete`;
+    
+    const confirmInput = document.createElement('input');
+    confirmInput.type = 'hidden';
+    confirmInput.name = 'confirm';
+    confirmInput.value = 'DELETE';
+    
+    form.appendChild(confirmInput);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Enable delete button only when "DELETE" is typed
+document.getElementById('confirmInput').addEventListener('input', function() {
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    deleteBtn.disabled = this.value !== 'DELETE';
+});
+
+// Auto-capitalize DELETE input
+document.getElementById('confirmInput').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+});
+</script>
+
+<style>
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    font-weight: 600;
+}
+
+.table > tbody > tr > td {
+    vertical-align: middle;
+}
+
+.opacity-75 {
+    opacity: 0.75;
+}
+</style>
+{% endblock %}
