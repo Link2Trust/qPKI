@@ -96,3 +96,23 @@ PHASE1_IMPLEMENTATION.md
 README_MACOS.md
 SETUP_SUMMARY.md
 EMAIL_FIX_SUMMARY.md
+
+# Additional cleanup rules
+logs/*.log
+config/*.db
+config/notifications.db
+*.db
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Temporary development files
+temp/
+tmp/
+test_certs/
+
+# IDE specific
+.idea/
+.vscode/
+*.sublime-*
+
