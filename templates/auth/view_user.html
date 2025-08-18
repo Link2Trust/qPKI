@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}View User: {{ user.username }} - qPKI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- User Header -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-circle"></i> User Details: {{ user.username }}
+                    </h4>
+                    <div>
+                        <a href="{{ url_for('auth.edit_user', user_id=user.id) }}" class="btn btn-sm btn-primary me-2">
+                            <i class="fas fa-edit"></i> Edit User
+                        </a>
+                        <a href="{{ url_for('auth.list_users') }}" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Users
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <div class="avatar-lg bg-primary rounded-circle d-flex align-items-center justify-content-center text-white mx-auto mb-3">
+                                <i class="fas fa-user fa-3x"></i>
+                            </div>
+                            <h5>{{ user.full_name or user.username }}</h5>
+                            <p class="text-muted">{{ user.role.title() if user.role else 'Unknown Role' }}</p>
+                            
+                            <div class="mt-3">
+                                <span class="badge bg-{{ 'success' if user.is_active else 'secondary' }} mb-2">
+                                    <i class="fas fa-{{ 'check-circle' if user.is_active else 'times-circle' }}"></i>
+                                    {{ 'Active' if user.is_active else 'Inactive' }}
+                                </span>
+                                
+                                {% if user.two_factor_enabled %}
+                                <span class="badge bg-info mb-2">
+                                    <i class="fas fa-shield-alt"></i> 2FA Enabled
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning mb-2">
+                                    <i class="fas fa-shield-alt"></i> 2FA Disabled
+                                </span>
+                                {% endif %}
+                                
+                                {% if user.force_password_change or user.is_password_expired %}
+                                <span class="badge bg-warning mb-2">
+                                    <i class="fas fa-exclamation-triangle"></i> Password Change Required
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Full Name</label>
+                                        <div class="form-control-plaintext border-bottom">
+                                            {{ user.full_name or 'Not set' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Email Address</label>
+                                        <div class="form-control-plaintext border-bottom">
+                                            {{ user.email or 'Not set' }}
+                                            {% if user.email and not user.email_verified %}
+                                            <small class="text-warning">
+                                                <i class="fas fa-exclamation-triangle"></i> Not verified
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Department</label>
+                                        <div class="form-control-plaintext border-bottom">
+                                            {{ user.department or 'Not set' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Phone Number</label>
+                                        <div class="form-control-plaintext border-bottom">
+                                            {{ user.phone or 'Not set' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">Username</label>
+                                        <div class="form-control-plaintext border-bottom">
+                                            <strong>{{ user.username }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted">User ID</label>
+                                        <div class="form-control-plaintext border-bottom">
+                                            {{ user.id }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Account Security Info -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-shield-alt"></i> Security Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Password Status</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.force_password_change %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Change Required
+                                    </span>
+                                    {% elif user.is_password_expired %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times-circle"></i> Expired
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> Valid
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if user.password_last_changed %}
+                                <small class="text-muted">
+                                    Last changed: {{ user.password_last_changed.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Two-Factor Authentication</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.two_factor_enabled %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-shield-alt"></i> Enabled
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-shield-alt"></i> Disabled
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if user.mfa_setup_date %}
+                                <small class="text-muted">
+                                    Setup date: {{ user.mfa_setup_date.strftime('%Y-%m-%d') }}
+                                </small>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Login Attempts</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.failed_login_attempts and user.failed_login_attempts > 0 %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> {{ user.failed_login_attempts }} failed attempts
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> No failed attempts
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if user.last_login_attempt %}
+                                <small class="text-muted">
+                                    Last attempt: {{ user.last_login_attempt.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Timestamps -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-clock"></i> Account History
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Account Created</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.created_at %}
+                                    <i class="fas fa-calendar-alt text-muted me-1"></i>
+                                    {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                    Not available
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Last Updated</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.updated_at %}
+                                    <i class="fas fa-edit text-muted me-1"></i>
+                                    {{ user.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                    Never updated
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Last Login</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.last_login %}
+                                    <i class="fas fa-sign-in-alt text-muted me-1"></i>
+                                    {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                    <span class="text-muted">Never logged in</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Account Status</label>
+                                <div class="form-control-plaintext">
+                                    {% if user.status %}
+                                    <span class="badge bg-info">{{ user.status.title() }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Unknown</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Actions -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-tools"></i> Admin Actions
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="{{ url_for('auth.edit_user', user_id=user.id) }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit"></i> Edit User
+                                </a>
+                                
+                                <form method="POST" action="{{ url_for('auth.reset_user_password', user_id=user.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Reset password for {{ user.username }}?')">
+                                        <i class="fas fa-key"></i> Reset Password
+                                    </button>
+                                </form>
+                                
+                                {% if user.is_active %}
+                                <form method="POST" action="{{ url_for('auth.edit_user', user_id=user.id) }}" class="d-inline">
+                                    <input type="hidden" name="is_active" value="false">
+                                    <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Deactivate user {{ user.username }}?')">
+                                        <i class="fas fa-user-slash"></i> Deactivate
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('auth.edit_user', user_id=user.id) }}" class="d-inline">
+                                    <input type="hidden" name="is_active" value="true">
+                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Activate user {{ user.username }}?')">
+                                        <i class="fas fa-user-check"></i> Activate
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Danger Zone -->
+                            <div class="border-top pt-3 mt-3">
+                                <h6 class="text-danger mb-3">
+                                    <i class="fas fa-exclamation-triangle"></i> Danger Zone
+                                </h6>
+                                <button type="button" class="btn btn-outline-danger btn-sm" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteUserModal">
+                                    <i class="fas fa-trash"></i> Delete User
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-danger" id="deleteUserModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Delete User
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the user <strong>{{ user.username }}</strong>?</p>
+                <p class="text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>This action cannot be undone!</strong> 
+                    All user data and associated records will be permanently deleted.
+                </p>
+                
+                <form id="deleteUserForm" method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}">
+                    <div class="mb-3">
+                        <label for="confirmDelete" class="form-label">
+                            Type <strong>DELETE</strong> to confirm:
+                        </label>
+                        <input type="text" class="form-control" id="confirmDelete" name="confirm" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="deleteUserForm" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-focus on delete confirmation input when modal opens
+document.getElementById('deleteUserModal').addEventListener('shown.bs.modal', function () {
+    document.getElementById('confirmDelete').focus();
+});
+</script>
+{% endblock %}
