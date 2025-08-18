@@ -7,22 +7,15 @@ full PKI operations, authentication, rate limiting, and documentation.
 
 import os
 import logging
+from datetime import datetime
 from flask import Flask, request, jsonify
-from flask_restful import Api
+from flask_restful import Api, Resource
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flasgger import Swagger
 from marshmallow import ValidationError
 
 from ..database import DatabaseManager, DatabaseConfig
-from .resources.ca_resources import CAResource, CAListResource
-from .resources.certificate_resources import CertificateResource, CertificateListResource
-from .resources.crl_resources import CRLResource, CRLListResource
-from .resources.ocsp_resources import OCSPResource
-from .resources.audit_resources import AuditLogResource, AuditLogListResource
-from .resources.system_resources import SystemStatusResource, SystemInfoResource
-from .auth import APIAuthManager
-from .middleware import APIMiddleware, error_handler
 
 
 def create_api_app(config=None):

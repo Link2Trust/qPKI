@@ -2,56 +2,62 @@ version: '3.8'
 
 services:
   qpki:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qpki:latest
+    container_name: qpki-app
     ports:
       - "9090:9090"
-    volumes:
-      - ./certificates:/app/certificates
-      - ./ca:/app/ca
-      - ./crl:/app/crl
-      - ./logs:/app/logs
-      - ./config:/app/config
     environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
-      - PYTHONPATH=/app/src
+      - WEB_PORT=9090
+      - PYTHONPATH=/opt/qpki/src
+    volumes:
+      # Persist certificate data
+      - qpki_certificates:/opt/qpki/certificates
+      - qpki_ca:/opt/qpki/ca
+      - qpki_crl:/opt/qpki/crl
+      - qpki_keys:/opt/qpki/keys
+      - qpki_logs:/opt/qpki/logs
+    restart: unless-stopped
+    networks:
+      - qpki-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Optional: Add nginx reverse proxy for SSL/TLS termination
+  nginx:
+    image: nginx:alpine
+    container_name: qpki-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      - mailhog
+      - qpki
     networks:
       - qpki-network
-
-  mailhog:
-    image: mailhog/mailhog:latest
-    ports:
-      - "1025:1025"    # SMTP port
-      - "8025:8025"    # Web UI port
-    networks:
-      - qpki-network
-
-  # Optional: PostgreSQL for production-like database testing
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: qpki
-      POSTGRES_USER: qpki
-      POSTGRES_PASSWORD: qpki_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - qpki-network
+    restart: unless-stopped
     profiles:
-      - database
+      - with-ssl
+
+volumes:
+  qpki_certificates:
+    driver: local
+  qpki_ca:
+    driver: local
+  qpki_crl:
+    driver: local
+  qpki_keys:
+    driver: local
+  qpki_logs:
+    driver: local
 
 networks:
   qpki-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-
-# Usage:
-# docker-compose up -d                    # Start qPKI with MailHog
-# docker-compose --profile database up -d # Start with PostgreSQL too
-# docker-compose down                     # Stop all services

@@ -138,6 +138,8 @@ class CertificateAuthority(Base):
         Index('idx_ca_type', ca_type),
         Index('idx_ca_status', status),
         Index('idx_ca_not_after', not_after),
+        Index('idx_ca_ca_id', ca_id),  # Add unique index for ca_id
+        UniqueConstraint('ca_id', name='uq_ca_ca_id'),  # Explicit unique constraint
     )
     
     def to_dict(self) -> Dict[str, Any]:

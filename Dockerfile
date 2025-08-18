@@ -1,40 +1,54 @@
-FROM python:3.11-slim
+# qPKI - Quantum-Safe Hybrid PKI
+# Docker image for Linux deployment
 
-# Set working directory
-WORKDIR /app
+FROM python:3.11-slim-bookworm
 
-# Install system dependencies
+# Environment
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    WEB_PORT=9090 \
+    DEBIAN_FRONTEND=noninteractive \
+    FLASK_ENV=production \
+    FLASK_APP=app.py
+
+# System dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
     libffi-dev \
     python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+    pkg-config \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Create non-root user and workdir
+RUN groupadd -r qpki && useradd -r -g qpki -d /opt/qpki qpki
+WORKDIR /opt/qpki
+
+# Dependency layer (better cache)
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# App code
 COPY . .
 
-# Install the package in development mode
+# Install package (editable)
 RUN pip install -e .
 
-# Create necessary directories
-RUN mkdir -p certificates ca crl logs config
+# Runtime dirs & permissions
+RUN mkdir -p certificates ca crl keys logs config \
+ && chown -R qpki:qpki /opt/qpki
 
-# Set environment variables
-ENV PYTHONPATH=/app/src
-ENV FLASK_ENV=production
-ENV FLASK_APP=app.py
+# Use non-root
+USER qpki
 
-# Expose port
+# Python path for src layout (if applicable)
+ENV PYTHONPATH=/opt/qpki/src
+
+# Expose web port
 EXPOSE 9090
 
-# Health check
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:9090/ || exit 1
 

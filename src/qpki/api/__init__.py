@@ -5,14 +5,8 @@ Comprehensive REST API for all PKI operations including certificate management,
 CA operations, CRL handling, OCSP, and audit logging.
 """
 
-from .app import create_api_app
-from .resources import *
-from .schemas import *
-from .auth import APIAuthManager
-from .middleware import APIMiddleware
+from .simple_app import create_app
 
 __all__ = [
-    'create_api_app',
-    'APIAuthManager', 
-    'APIMiddleware'
+    'create_app'
 ]
