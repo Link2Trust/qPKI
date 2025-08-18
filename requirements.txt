@@ -32,6 +32,17 @@ requests>=2.31.0
 flask-limiter>=3.5.0  # Rate limiting
 psutil>=5.9.0  # System monitoring
 
+# Production Dependencies
+gunicorn>=21.2.0  # WSGI server
+flask-talisman>=1.1.0  # Security headers
+python-dotenv>=1.0.0  # Environment variable management
+redis>=4.5.0  # Redis client for rate limiting
+psycopg2-binary>=2.9.0  # PostgreSQL adapter (already included above)
+
+# Monitoring and metrics (optional)
+# prometheus-flask-exporter>=0.23.0  # Prometheus metrics
+# sentry-sdk[flask]>=1.32.0  # Error tracking
+
 # Authentication and security
 # Note: secrets, hashlib, and uuid are built-in Python modules
 
