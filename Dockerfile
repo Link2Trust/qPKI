@@ -3,50 +3,54 @@
 
 FROM python:3.11-slim-bookworm
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV WEB_PORT=9090
-ENV DEBIAN_FRONTEND=noninteractive
+# Environment
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    WEB_PORT=9090 \
+    DEBIAN_FRONTEND=noninteractive \
+    FLASK_ENV=production \
+    FLASK_APP=app.py
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libffi-dev \
     libssl-dev \
+    libffi-dev \
+    python3-dev \
     pkg-config \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
-# Create qpki user and group
+# Create non-root user and workdir
 RUN groupadd -r qpki && useradd -r -g qpki -d /opt/qpki qpki
-
-# Set working directory
 WORKDIR /opt/qpki
 
-# Copy requirements and install Python dependencies
+# Dependency layer (better cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# App code
 COPY . .
 
-# Install qPKI package
+# Install package (editable)
 RUN pip install -e .
 
-# Create necessary directories and set permissions
-RUN mkdir -p certificates ca crl keys logs && \
-    chown -R qpki:qpki /opt/qpki
+# Runtime dirs & permissions
+RUN mkdir -p certificates ca crl keys logs config \
+ && chown -R qpki:qpki /opt/qpki
 
-# Switch to qpki user
+# Use non-root
 USER qpki
 
-# Expose port
+# Python path for src layout (if applicable)
+ENV PYTHONPATH=/opt/qpki/src
+
+# Expose web port
 EXPOSE 9090
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:9090/ || exit 1
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:9090/ || exit 1
 
-# Start the application
+# Run the application
 CMD ["python", "app.py"]
