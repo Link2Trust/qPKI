@@ -1088,9 +1088,10 @@ def internal_error(error):
                          error_message="Internal server error"), 500
 
 if __name__ == '__main__':
+    port = int(os.environ.get('WEB_PORT', 9090))
     print("Starting qPKI Web Application...")
     print(f"Certificate storage: {CERT_STORAGE_DIR}")
     print(f"CA storage: {CA_STORAGE_DIR}")
-    print("Access the application at: http://localhost:9090")
+    print(f"Access the application at: http://localhost:{port}")
     
-    app.run(debug=True, host='0.0.0.0', port=9090)
+    app.run(debug=True, host='0.0.0.0', port=port)

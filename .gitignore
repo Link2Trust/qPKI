@@ -93,3 +93,6 @@ test_certs/
 
 cleanup_for_github.sh
 PHASE1_IMPLEMENTATION.md
+README_MACOS.md
+SETUP_SUMMARY.md
+EMAIL_FIX_SUMMARY.md

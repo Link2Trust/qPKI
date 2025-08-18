@@ -1,0 +1,34 @@
+[Unit]
+Description=qPKI - Quantum-Safe Hybrid PKI Web Application
+Documentation=https://github.com/Link2Trust/qPKI
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=qpki
+Group=qpki
+WorkingDirectory=/opt/qpki
+Environment=PATH=/opt/qpki/venv/bin
+Environment=WEB_PORT=9090
+Environment=PYTHONPATH=/opt/qpki/src
+ExecStart=/opt/qpki/venv/bin/python /opt/qpki/app.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=qpki
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/qpki/certificates /opt/qpki/ca /opt/qpki/crl /opt/qpki/keys
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+[Install]
+WantedBy=multi-user.target
