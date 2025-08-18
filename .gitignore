@@ -46,11 +46,17 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# qPKI specific - sensitive data
-keys/
-certs/
-ca/
-certificates/
+# qPKI specific - sensitive data (keep directories but ignore contents)
+keys/*
+!keys/.gitkeep
+certs/*
+!certs/.gitkeep
+ca/*
+!ca/.gitkeep
+certificates/*
+!certificates/.gitkeep
+crl/*
+!crl/.gitkeep
 exported_certs/
 standard_certs/
 *.pem

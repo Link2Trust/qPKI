@@ -9,7 +9,7 @@ import uuid
 import json
 import logging
 from typing import Dict, Any, Optional, List, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, text, and_, or_
@@ -120,6 +120,10 @@ class DatabaseManager:
         except Exception:
             return False
     
+    def is_connected(self) -> bool:
+        """Alias for check_connection for compatibility."""
+        return self.check_connection()
+    
     def get_database_info(self) -> Dict[str, Any]:
         """Get database information and statistics."""
         try:
@@ -134,8 +138,8 @@ class DatabaseManager:
                 # Get expiring certificates (next 30 days)
                 expiring_soon = session.query(Certificate).filter(
                     and_(
-                        Certificate.not_after <= datetime.utcnow() + timedelta(days=30),
-                        Certificate.not_after > datetime.utcnow(),
+                        Certificate.not_after <= datetime.now(timezone.utc) + timedelta(days=30),
+                        Certificate.not_after > datetime.now(timezone.utc),
                         Certificate.status == CertificateStatus.VALID
                     )
                 ).count()
@@ -151,7 +155,7 @@ class DatabaseManager:
                         'notifications': notification_count,
                         'certificates_expiring_soon': expiring_soon
                     },
-                    'last_checked': datetime.utcnow().isoformat()
+                    'last_checked': datetime.now(timezone.utc).isoformat()
                 }
                 
         except Exception as e:
@@ -159,7 +163,7 @@ class DatabaseManager:
                 'database_type': self.config.db_type,
                 'connection_healthy': False,
                 'error': str(e),
-                'last_checked': datetime.utcnow().isoformat()
+                'last_checked': datetime.now(timezone.utc).isoformat()
             }
     
     # Certificate Authority Operations
@@ -385,9 +389,9 @@ class DatabaseManager:
                 
                 # Update certificate status
                 cert.status = CertificateStatus.REVOKED
-                cert.revocation_date = datetime.utcnow()
+                cert.revocation_date = datetime.now(timezone.utc)
                 cert.revocation_reason = RevocationReason(reason)
-                cert.updated_at = datetime.utcnow()
+                cert.updated_at = datetime.now(timezone.utc)
                 
                 session.flush()
                 
@@ -413,12 +417,12 @@ class DatabaseManager:
         """Get certificates expiring within specified days."""
         try:
             with self.get_session() as session:
-                expiry_threshold = datetime.utcnow() + timedelta(days=days_ahead)
+                expiry_threshold = datetime.now(timezone.utc) + timedelta(days=days_ahead)
                 
                 return session.query(Certificate).filter(
                     and_(
                         Certificate.not_after <= expiry_threshold,
-                        Certificate.not_after > datetime.utcnow(),
+                        Certificate.not_after > datetime.now(timezone.utc),
                         Certificate.status == CertificateStatus.VALID
                     )
                 ).order_by(Certificate.not_after).all()

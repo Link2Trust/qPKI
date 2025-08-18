@@ -46,8 +46,8 @@ class DatabaseConfig:
     def from_env(cls) -> 'DatabaseConfig':
         """Create configuration from environment variables."""
         
-        # Determine database type
-        db_type = os.getenv('QPKI_DB_TYPE', 'postgresql').lower()
+        # Determine database type - default to SQLite for easier setup
+        db_type = os.getenv('QPKI_DB_TYPE', 'sqlite').lower()
         
         # Set default ports based on database type
         default_ports = {

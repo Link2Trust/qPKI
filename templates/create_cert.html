@@ -111,6 +111,12 @@
                                     </label>
                                 </div>
                                 <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="cert_type" id="cert_type_pqc" value="pqc">
+                                    <label class="form-check-label" for="cert_type_pqc">
+                                        <i class="fas fa-atom text-warning me-1"></i><strong>PQC (ML-DSA only)</strong>
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="cert_type" id="cert_type_classic" value="classic">
                                     <label class="form-check-label" for="cert_type_classic">
                                         <i class="fas fa-lock text-primary me-1"></i><strong>Classic (RSA/ECC only)</strong>
@@ -118,6 +124,7 @@
                                 </div>
                                 <div class="form-text mt-2">
                                     <strong>Hybrid:</strong> Uses both classic and post-quantum algorithms for future security<br>
+                                    <strong>PQC:</strong> Uses only post-quantum ML-DSA (Dilithium) algorithm for quantum resistance<br>
                                     <strong>Classic:</strong> Uses only traditional RSA or ECC algorithms for compatibility
                                 </div>
                             </div>
@@ -147,6 +154,27 @@
                                     <option value="secp384r1">P-384 (secp384r1)</option>
                                     <option value="secp521r1">P-521 (secp521r1)</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <!-- PQC Certificate Algorithm Selection (Hidden by default) -->
+                        <div id="pqc_algorithm_section" class="row mb-4" style="display: none;">
+                            <div class="col-md-6">
+                                <label for="pqc_dilithium_variant" class="form-label">ML-DSA (Dilithium) Variant *</label>
+                                <select class="form-select" id="pqc_dilithium_variant" name="pqc_dilithium_variant">
+                                    <option value="2">ML-DSA-44 (Dilithium2) - Fastest</option>
+                                    <option value="3" selected>ML-DSA-65 (Dilithium3) - Balanced</option>
+                                    <option value="5">ML-DSA-87 (Dilithium5) - Highest Security</option>
+                                </select>
+                                <div class="form-text">Choose the security level for the post-quantum signature algorithm</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Pure PQC Certificate:</strong><br>
+                                    <small>This certificate will use only post-quantum cryptography (ML-DSA/Dilithium). 
+                                    It may not be compatible with legacy systems that don't support post-quantum algorithms.</small>
+                                </div>
                             </div>
                         </div>
 
@@ -342,12 +370,19 @@
     // Handle certificate type selection
     function updateCertificateTypeUI() {
         const isHybrid = document.getElementById('cert_type_hybrid').checked;
+        const isPQC = document.getElementById('cert_type_pqc').checked;
+        const isClassic = document.getElementById('cert_type_classic').checked;
+        
         const classicSection = document.getElementById('classic_algorithm_section');
+        const pqcSection = document.getElementById('pqc_algorithm_section');
         const infoPanel = document.querySelector('.alert-info');
         const securityFeatures = document.querySelector('.card-body ul');
         
+        // Hide all algorithm sections first
+        classicSection.style.display = 'none';
+        pqcSection.style.display = 'none';
+        
         if (isHybrid) {
-            classicSection.style.display = 'none';
             infoPanel.innerHTML = `
                 <i class="fas fa-info-circle me-2"></i>
                 <strong>Note:</strong> The certificate will use the same cryptographic algorithms 
@@ -358,7 +393,19 @@
                 <li><i class="fas fa-check text-success me-2"></i>CA-signed validity</li>
                 <li><i class="fas fa-check text-success me-2"></i>Quantum-resistant</li>
             `;
-        } else {
+        } else if (isPQC) {
+            pqcSection.style.display = 'flex';
+            infoPanel.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Note:</strong> Pure PQC certificate uses only post-quantum ML-DSA (Dilithium) 
+                signatures for maximum quantum resistance.
+            `;
+            securityFeatures.innerHTML = `
+                <li><i class="fas fa-check text-warning me-2"></i>Pure post-quantum</li>
+                <li><i class="fas fa-check text-success me-2"></i>CA-signed validity</li>
+                <li><i class="fas fa-check text-success me-2"></i>Future-proof security</li>
+            `;
+        } else if (isClassic) {
             classicSection.style.display = 'flex';
             infoPanel.innerHTML = `
                 <i class="fas fa-info-circle me-2"></i>
@@ -370,9 +417,9 @@
                 <li><i class="fas fa-check text-success me-2"></i>CA-signed validity</li>
                 <li><i class="fas fa-check text-warning me-2"></i>Legacy compatibility</li>
             `;
+            
+            updateClassicAlgorithmUI();
         }
-        
-        updateClassicAlgorithmUI();
     }
 
     // Handle classic algorithm selection
@@ -392,6 +439,7 @@
 
     // Event listeners
     document.getElementById('cert_type_hybrid').addEventListener('change', updateCertificateTypeUI);
+    document.getElementById('cert_type_pqc').addEventListener('change', updateCertificateTypeUI);
     document.getElementById('cert_type_classic').addEventListener('change', updateCertificateTypeUI);
     document.getElementById('classic_algorithm').addEventListener('change', updateClassicAlgorithmUI);
 

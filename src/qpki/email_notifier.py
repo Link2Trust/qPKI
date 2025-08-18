@@ -19,6 +19,14 @@ from email import encoders
 from jinja2 import Environment, FileSystemLoader
 import sqlite3
 
+# Import centralized logging
+try:
+    from .logging_config import get_email_logger, log_activity
+except ImportError:
+    # Fallback in case centralized logging is not available
+    get_email_logger = None
+    log_activity = None
+
 class EmailNotificationService:
     """Service for sending certificate expiration notifications."""
     
@@ -131,7 +139,7 @@ class EmailNotificationService:
                 (certificate_serial, notification_type, email_address, sent_date, days_before_expiry)
                 VALUES (?, ?, ?, ?, ?)
             ''', (cert_serial, notification_type, email, 
-                  datetime.utcnow().isoformat(), days_before_expiry))
+                  datetime.now(timezone.utc).isoformat(), days_before_expiry))
             
             conn.commit()
         except sqlite3.Error as e:
@@ -346,9 +354,25 @@ This is an automated message from qPKI.
         not_after_str = validity.get('not_after', '')
         
         try:
-            not_after = datetime.fromisoformat(not_after_str.replace('Z', '+00:00'))
-        except:
-            self.logger.error(f"Invalid expiry date format in {filename}: {not_after_str}")
+            # Handle different date formats properly
+            if not_after_str:
+                # Fix for date parsing - handle trailing 'Z' with timezone info
+                if not_after_str.endswith('Z'):
+                    # Check if there's already timezone info before the Z
+                    if '+' in not_after_str[:-1] or (len(not_after_str) > 6 and '-' in not_after_str[-7:-1]):
+                        # Remove trailing Z if timezone already present (e.g., "2024-12-31T23:59:59+00:00Z")
+                        not_after_str = not_after_str[:-1]
+                    else:
+                        # Replace Z with UTC offset if no timezone info (e.g., "2024-12-31T23:59:59Z")
+                        not_after_str = not_after_str.replace('Z', '+00:00')
+                
+                not_after = datetime.fromisoformat(not_after_str)
+            else:
+                self.logger.error(f"Empty expiry date in {filename}")
+                result['errors'] += 1
+                return result
+        except Exception as e:
+            self.logger.error(f"Invalid expiry date format in {filename}: {not_after_str} - {e}")
             result['errors'] += 1
             return result
         

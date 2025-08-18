@@ -6,7 +6,7 @@ Defines data structures for OCSP requests, responses, and certificate status.
 
 import enum
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
@@ -210,7 +210,7 @@ class CertificateInfo:
     def is_expired(self) -> bool:
         """Check if certificate is expired."""
         if self.not_after:
-            return datetime.utcnow() > self.not_after
+            return datetime.now(timezone.utc) > self.not_after
         return False
     
     def get_cert_status(self) -> CertStatus:

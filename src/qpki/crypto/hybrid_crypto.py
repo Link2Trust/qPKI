@@ -467,21 +467,60 @@ class FlexibleHybridCrypto:
         else:  # ECC
             crypto_instance = ECCCrypto() if classical_algorithm != self.classical_algorithm else self.classical_crypto
         
-        classical_private = crypto_instance.deserialize_private_key(
-            key_data["classical_private_key"].encode('utf-8'), password
-        )
-        classical_public = crypto_instance.deserialize_public_key(
-            key_data["classical_public_key"].encode('utf-8')
-        )
-        dilithium_private = self.dilithium_crypto.deserialize_private_key(
-            key_data["dilithium_private_key"]
-        )
-        dilithium_public = self.dilithium_crypto.deserialize_public_key(
-            key_data["dilithium_public_key"]
-        )
-        
-        return FlexibleHybridKeyPair(classical_private, classical_public, 
-                                   dilithium_private, dilithium_public, classical_algorithm)
+        try:
+            classical_private = crypto_instance.deserialize_private_key(
+                key_data["classical_private_key"].encode('utf-8'), password
+            )
+            classical_public = crypto_instance.deserialize_public_key(
+                key_data["classical_public_key"].encode('utf-8')
+            )
+            
+            # Validate Dilithium key data length before deserialization
+            dilithium_private_data = key_data["dilithium_private_key"]
+            dilithium_public_data = key_data["dilithium_public_key"]
+            
+            # Try to deserialize with the configured Dilithium variant first
+            try:
+                dilithium_private = self.dilithium_crypto.deserialize_private_key(dilithium_private_data)
+                dilithium_public = self.dilithium_crypto.deserialize_public_key(dilithium_public_data)
+            except ValueError as e:
+                if "must be of length" in str(e):
+                    # Key length mismatch - try to detect correct variant from key size
+                    import base64
+                    
+                    # Decode to get actual key length
+                    try:
+                        decoded_private = base64.b64decode(dilithium_private_data)
+                        decoded_public = base64.b64decode(dilithium_public_data)
+                    except Exception:
+                        raise ValueError(f"Invalid base64 encoding in Dilithium keys: {e}")
+                    
+                    # Try different Dilithium variants based on key size
+                    correct_variant = None
+                    for variant, variant_info in DilithiumCrypto.DILITHIUM_VARIANTS.items():
+                        if (len(decoded_private) == variant_info['private_key_size'] and 
+                            len(decoded_public) == variant_info['public_key_size']):
+                            correct_variant = variant
+                            break
+                    
+                    if correct_variant:
+                        # Create new Dilithium crypto instance with correct variant
+                        correct_dilithium_crypto = DilithiumCrypto(correct_variant)
+                        dilithium_private = correct_dilithium_crypto.deserialize_private_key(dilithium_private_data)
+                        dilithium_public = correct_dilithium_crypto.deserialize_public_key(dilithium_public_data)
+                        
+                        # Update self.dilithium_crypto to use the correct variant
+                        self.dilithium_crypto = correct_dilithium_crypto
+                    else:
+                        raise ValueError(f"Could not determine correct Dilithium variant for key sizes: private={len(decoded_private)}, public={len(decoded_public)}")
+                else:
+                    raise
+            
+            return FlexibleHybridKeyPair(classical_private, classical_public, 
+                                       dilithium_private, dilithium_public, classical_algorithm)
+                                       
+        except Exception as e:
+            raise ValueError(f"Failed to deserialize hybrid keys: {e}")
     
     def get_hybrid_key_info(self, hybrid_keys: FlexibleHybridKeyPair) -> Dict[str, Any]:
         """

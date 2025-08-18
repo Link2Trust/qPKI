@@ -6,7 +6,7 @@ Flask-based web interface for managing hybrid post-quantum certificates
 with support for both RSA and ECC classical algorithms combined with Dilithium.
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file, g, session
 import os
 import sys
 import json
@@ -18,11 +18,81 @@ import traceback
 # Add the source directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
-from qpki.crypto import FlexibleHybridCrypto, ECCCrypto, RSACrypto, DilithiumCrypto
+from qpki.crypto import FlexibleHybridCrypto, ECCCrypto, RSACrypto, DilithiumCrypto, PQCCrypto
 from qpki.email_notifier import EmailNotificationService
+from qpki.logging_config import setup_logging, get_web_logger, log_activity
+from qpki.database import DatabaseManager, DatabaseConfig
+from qpki.auth import AuthenticationManager, login_required, admin_required, auth_bp
+from qpki.utils.enhanced_cert_formats import EnhancedCertificateFormatConverter
 
 app = Flask(__name__)
-app.secret_key = 'qpki-development-key-change-in-production'
+app.secret_key = os.environ.get('QPKI_SECRET_KEY', 'qpki-development-key-change-in-production')
+
+# Initialize centralized logging
+setup_logging(log_level="INFO", console_output=True)
+logger = get_web_logger()
+
+# Initialize database and authentication
+try:
+    db_config = DatabaseConfig.from_env()
+    
+    # Try to initialize the database
+    db_manager = DatabaseManager(db_config)
+    
+    # Test connection
+    if not db_manager.check_connection():
+        raise ConnectionError("Could not connect to configured database")
+    
+    app.db_manager = db_manager
+    
+    # Initialize authentication manager
+    auth_manager = AuthenticationManager(db_manager)
+    app.auth_manager = auth_manager
+    
+    # Create database tables
+    db_manager.migrate_database()
+    
+    # Create default admin user if no users exist
+    success, message = auth_manager.create_default_admin()
+    if success:
+        logger.info(f"Default admin user created: {message}")
+    
+except Exception as e:
+    logger.warning(f"Database initialization failed, trying SQLite fallback: {e}")
+    
+    # Try SQLite as fallback
+    try:
+        # Force SQLite configuration
+        import os
+        os.environ['QPKI_DB_TYPE'] = 'sqlite'
+        db_config = DatabaseConfig.from_env()
+        db_manager = DatabaseManager(db_config)
+        
+        if db_manager.check_connection():
+            app.db_manager = db_manager
+            auth_manager = AuthenticationManager(db_manager)
+            app.auth_manager = auth_manager
+            
+            # Create database tables
+            db_manager.migrate_database()
+            
+            # Create default admin user if no users exist
+            success, message = auth_manager.create_default_admin()
+            if success:
+                logger.info(f"SQLite fallback successful - {message}")
+            else:
+                logger.info(f"SQLite fallback successful - {message}")
+        else:
+            raise ConnectionError("SQLite fallback failed")
+            
+    except Exception as sqlite_error:
+        logger.error(f"SQLite fallback also failed: {sqlite_error}")
+        logger.warning("Running in file-based mode without authentication")
+        app.db_manager = None
+        app.auth_manager = None
+
+# Register authentication blueprint
+app.register_blueprint(auth_bp)
 
 # Global configuration
 CERT_STORAGE_DIR = os.path.join(os.path.dirname(__file__), 'certificates')
@@ -34,7 +104,16 @@ os.makedirs(CERT_STORAGE_DIR, exist_ok=True)
 os.makedirs(CA_STORAGE_DIR, exist_ok=True)
 os.makedirs(CRL_STORAGE_DIR, exist_ok=True)
 
+# Log application startup
+log_activity(logger, "web_app_startup", {
+    'description': 'qPKI Web Application starting',
+    'cert_storage': CERT_STORAGE_DIR,
+    'ca_storage': CA_STORAGE_DIR,
+    'crl_storage': CRL_STORAGE_DIR
+})
+
 @app.route('/')
+@login_required()
 def index():
     """Main dashboard showing system overview."""
     try:
@@ -42,14 +121,44 @@ def index():
         ca_count = len([f for f in os.listdir(CA_STORAGE_DIR) if f.endswith('.json')])
         cert_count = len([f for f in os.listdir(CERT_STORAGE_DIR) if f.endswith('.json')])
         
-        return render_template('index.html', ca_count=ca_count, cert_count=cert_count)
+        # Get user info
+        user = g.current_user
+        
+        # Log dashboard access
+        log_activity(logger, "dashboard_accessed", {
+            'description': f'User {user.get("username") if user else "unknown"} accessed dashboard',
+            'user': user.get('username') if user else 'unknown',
+            'user_role': user.get('role') if user else 'unknown',
+            'ca_count': ca_count,
+            'cert_count': cert_count,
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
+        return render_template('index.html', 
+                             ca_count=ca_count, 
+                             cert_count=cert_count,
+                             user=user)
     except Exception as e:
+        log_activity(logger, "dashboard_access_failed", {
+            'description': f'Error loading dashboard: {str(e)}',
+            'error_message': str(e),
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading dashboard: {str(e)}', 'error')
-        return render_template('index.html', ca_count=0, cert_count=0)
+        return render_template('index.html', ca_count=0, cert_count=0, user=g.current_user)
 
 @app.route('/create_ca')
+@login_required('ca.create')
 def create_ca_form():
     """Show form for creating a new Certificate Authority."""
+    # Log access to CA creation form
+    log_activity(logger, "ca_creation_form_accessed", {
+        'description': f'User {g.current_user.get("username") if g.current_user else "unknown"} accessed CA creation form',
+        'user': g.current_user.get('username') if g.current_user else 'unknown',
+        'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+    })
+    
     # Get available cryptographic options
     ecc_curves = ECCCrypto.get_supported_curves()
     rsa_key_sizes = [2048, 3072, 4096]
@@ -78,6 +187,12 @@ def create_ca_form():
                             'organization': subject.get('organization', 'Unknown')
                         })
     except Exception as e:
+        log_activity(logger, "ca_creation_form_error", {
+            'description': f'Error loading root CAs for form: {str(e)}',
+            'error_message': str(e),
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading root CAs: {str(e)}', 'error')
     
     return render_template('create_ca.html', 
@@ -94,18 +209,30 @@ def _get_ca_crypto_info(ca_data):
     classical_info = hybrid_info.get('classical_algorithm', {})
     pq_info = hybrid_info.get('post_quantum_algorithm', {})
     
+    # Extract Dilithium variant - check multiple possible locations
+    dilithium_variant = pq_info.get('variant')
+    if dilithium_variant is None:
+        # Try alternative location or parse from algorithm string
+        algo_str = pq_info.get('algorithm', '')
+        if 'Dilithium3' in algo_str:
+            dilithium_variant = 3
+        elif 'Dilithium5' in algo_str:
+            dilithium_variant = 5
+        else:
+            dilithium_variant = 2  # Default fallback
+    
     # Determine algorithm type
     if 'RSA' in hybrid_info.get('type', ''):
         return {
             'algorithm': 'RSA',
             'rsa_key_size': classical_info.get('key_size', 2048),
-            'dilithium_variant': pq_info.get('variant', 2)
+            'dilithium_variant': dilithium_variant
         }
     else:
         return {
             'algorithm': 'ECC',
             'ecc_curve': classical_info.get('curve', 'secp256r1'),
-            'dilithium_variant': pq_info.get('variant', 2)
+            'dilithium_variant': dilithium_variant
         }
 
 def _create_hybrid_crypto_from_params(algorithm, **params):
@@ -126,19 +253,37 @@ def _create_hybrid_crypto_from_params(algorithm, **params):
 def is_certificate_expired(not_after_str):
     """Check if a certificate is expired."""
     try:
-        not_after = datetime.fromisoformat(not_after_str.replace('Z', '+00:00'))
+        # Handle various date formats with timezone info
+        if not_after_str.endswith('Z'):
+            if '+00:00' in not_after_str:
+                # Remove trailing Z if timezone is already present
+                not_after_str = not_after_str[:-1]
+            else:
+                # Replace Z with +00:00
+                not_after_str = not_after_str.replace('Z', '+00:00')
+        not_after = datetime.fromisoformat(not_after_str)
         return datetime.now(timezone.utc) > not_after
-    except:
+    except Exception as e:
+        print(f"Error parsing date {not_after_str}: {e}")
         return False
 
 def get_days_until_expiry(not_after_str):
     """Calculate days until certificate expiry. Returns negative for expired certificates."""
     try:
-        not_after = datetime.fromisoformat(not_after_str.replace('Z', '+00:00'))
+        # Handle various date formats with timezone info
+        if not_after_str.endswith('Z'):
+            if '+00:00' in not_after_str:
+                # Remove trailing Z if timezone is already present
+                not_after_str = not_after_str[:-1]
+            else:
+                # Replace Z with +00:00
+                not_after_str = not_after_str.replace('Z', '+00:00')
+        not_after = datetime.fromisoformat(not_after_str)
         now = datetime.now(timezone.utc)
         delta = not_after - now
         return delta.days
-    except:
+    except Exception as e:
+        print(f"Error parsing date {not_after_str}: {e}")
         return None
 
 def get_certificate_status(cert_data):
@@ -249,8 +394,8 @@ def add_certificate_to_crl(ca_filename, cert_serial, revocation_reason='unspecif
         crl_data = {
             "version": "v2",
             "issuer_ca": ca_filename,
-            "this_update": datetime.utcnow().isoformat() + "Z",
-            "next_update": (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z",
+            "this_update": datetime.now(timezone.utc).isoformat() + "Z",
+            "next_update": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() + "Z",
             "revoked_certificates": []
         }
     
@@ -262,18 +407,19 @@ def add_certificate_to_crl(ca_filename, cert_serial, revocation_reason='unspecif
     # Add certificate to CRL
     revoked_entry = {
         "serial_number": cert_serial,
-        "revocation_date": datetime.utcnow().isoformat() + "Z",
+        "revocation_date": datetime.now(timezone.utc).isoformat() + "Z",
         "reason": revocation_reason
     }
     
     crl_data["revoked_certificates"].append(revoked_entry)
-    crl_data["this_update"] = datetime.utcnow().isoformat() + "Z"
+    crl_data["this_update"] = datetime.now(timezone.utc).isoformat() + "Z"
     
     # Save updated CRL
     save_crl_for_ca(ca_filename, crl_data)
     return True
 
 @app.route('/create_ca', methods=['POST'])
+@login_required('ca.create')
 def create_ca():
     """Create a new Certificate Authority (root or subordinate)."""
     try:
@@ -316,8 +462,16 @@ def create_ca():
             parent_crypto_info = _get_ca_crypto_info(parent_ca_data)
             signing_crypto = _create_hybrid_crypto_from_params(**parent_crypto_info)
             
+            # Check if parent CA has private keys (needed for signing subordinate CA)
+            parent_keys_data = parent_ca_data.get('private_keys')
+            if not parent_keys_data:
+                raise ValueError(
+                    f"Parent CA '{parent_ca_filename}' does not contain private keys. "
+                    "This CA was likely created with an older version that didn't store private keys. "
+                    "Please recreate the parent CA with the current version to enable subordinate CA creation."
+                )
+            
             # Deserialize parent CA keys for signing
-            parent_keys_data = parent_ca_data.get('private_keys', {})
             signing_keys = signing_crypto.deserialize_hybrid_keys(parent_keys_data)
         
         # Algorithm-specific parameters for new CA
@@ -340,7 +494,7 @@ def create_ca():
         ca_keys = hybrid_crypto.generate_hybrid_key_pair()
         
         # Create CA certificate data
-        not_before = datetime.utcnow()
+        not_before = datetime.now(timezone.utc)
         not_after = not_before + timedelta(days=validity_years * 365)
         
         # Set path length constraint based on CA type
@@ -412,6 +566,22 @@ def create_ca():
             json.dump(ca_cert, f, indent=2)
         
         ca_type_str = "Root" if ca_type == 'root' else "Subordinate"
+        
+        # Log CA creation activity
+        log_activity(logger, "ca_created", {
+            'description': f'{ca_type_str} CA created: {ca_data["common_name"]}',
+            'ca_type': ca_type,
+            'common_name': ca_data['common_name'],
+            'organization': ca_data['organization'],
+            'algorithm': classical_algorithm,
+            'dilithium_variant': dilithium_variant,
+            'validity_years': validity_years,
+            'ca_filename': ca_filename,
+            'serial_number': ca_cert_data["serial_number"],
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         flash(f'{ca_type_str} Certificate Authority "{ca_data["common_name"]}" created successfully!', 'success')
         return redirect(url_for('list_cas'))
         
@@ -421,6 +591,7 @@ def create_ca():
         return redirect(url_for('create_ca_form'))
 
 @app.route('/cas')
+@login_required('ca.view')
 def list_cas():
     """List all Certificate Authorities."""
     cas = []
@@ -452,24 +623,59 @@ def list_cas():
                         'created': certificate.get('validity', {}).get('not_before', 'Unknown'),
                         'expires': certificate.get('validity', {}).get('not_after', 'Unknown')
                     })
+                    
+        # Log CAs list access
+        log_activity(logger, "cas_list_accessed", {
+            'description': f'User {g.current_user.get("username") if g.current_user else "unknown"} viewed CAs list',
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'cas_count': len(cas),
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
     except Exception as e:
+        log_activity(logger, "cas_list_access_failed", {
+            'description': f'Error loading CAs list: {str(e)}',
+            'error_message': str(e),
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading CAs: {str(e)}', 'error')
     
     return render_template('list_cas.html', cas=cas)
 
 @app.route('/ca/<filename>')
+@login_required('ca.view')
 def view_ca(filename):
     """View detailed information about a specific CA."""
     try:
         filepath = os.path.join(CA_STORAGE_DIR, filename)
         with open(filepath, 'r') as f:
             ca_data = json.load(f)
+        
+        # Log CA viewing
+        ca_common_name = ca_data.get('certificate', ca_data).get('subject', {}).get('common_name', 'Unknown')
+        log_activity(logger, "ca_viewed", {
+            'description': f'User {g.current_user.get("username") if g.current_user else "unknown"} viewed CA: {ca_common_name}',
+            'ca_file': filename,
+            'ca_common_name': ca_common_name,
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         return render_template('view_ca.html', ca_data=ca_data, filename=filename)
     except Exception as e:
+        log_activity(logger, "ca_view_failed", {
+            'description': f'Error loading CA {filename}: {str(e)}',
+            'ca_file': filename,
+            'error_message': str(e),
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
         flash(f'Error loading CA: {str(e)}', 'error')
         return redirect(url_for('list_cas'))
 
 @app.route('/create_cert')
+@login_required('cert.create')
 def create_cert_form():
     """Show form for creating a new certificate."""
     # Load available CAs
@@ -495,6 +701,7 @@ def create_cert_form():
     return render_template('create_cert.html', cas=cas)
 
 @app.route('/create_cert', methods=['POST'])
+@login_required('cert.create')
 def create_cert():
     """Create a new certificate signed by a CA."""
     try:
@@ -541,7 +748,7 @@ def create_cert():
                 }
             else:  # ECC
                 ecc_curve = request.form.get('classic_ecc_curve', 'secp256r1')
-                crypto_instance = ECCCrypto(curve=ecc_curve)
+                crypto_instance = ECCCrypto(curve_name=ecc_curve)
                 cert_keys = crypto_instance.generate_key_pair()
                 algorithm_info = {
                     'type': f'ECC-{ecc_curve}',
@@ -552,48 +759,30 @@ def create_cert():
                 }
             
             # For classic certificates, we need to adapt to CA signing
-            ca_algorithm_type = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('type', '')
-            if 'RSA' in ca_algorithm_type:
-                ca_rsa_key_size = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('key_size', 2048)
-                ca_crypto = FlexibleHybridCrypto(
-                    classical_algorithm='RSA',
-                    rsa_key_size=ca_rsa_key_size,
-                    dilithium_variant=2
-                )
-            else:
-                ca_ecc_curve = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('curve', 'secp256r1')
-                ca_crypto = FlexibleHybridCrypto(
-                    classical_algorithm='ECC',
-                    ecc_curve=ca_ecc_curve,
-                    dilithium_variant=2
-                )
-        else:
-            # Hybrid certificate - use the CA's algorithm settings
-            ca_algorithm_type = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('type', '')
+            # Use the CA's actual Dilithium variant for proper signing
+            ca_crypto_info = _get_ca_crypto_info(ca_data)
+            ca_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
+        elif cert_type == 'pqc':
+            # Pure Post-Quantum Certificate - use only Dilithium
+            dilithium_variant = int(request.form.get('pqc_dilithium_variant', 3))
+            crypto_instance = PQCCrypto(dilithium_variant=dilithium_variant)
+            cert_keys = crypto_instance.generate_key_pair()
+            algorithm_info = crypto_instance.get_algorithm_info()
             
-            if 'RSA' in ca_algorithm_type:
-                # Extract RSA key size from CA data
-                rsa_key_size = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('key_size', 2048)
-                crypto_instance = FlexibleHybridCrypto(
-                    classical_algorithm='RSA',
-                    rsa_key_size=rsa_key_size,
-                    dilithium_variant=2  # Default for certificates
-                )
-            else:  # ECC
-                # Extract ECC curve from CA data
-                ecc_curve = ca_data.get('cryptographic_info', {}).get('hybrid_key_info', {}).get('classical_algorithm', {}).get('curve', 'secp256r1')
-                crypto_instance = FlexibleHybridCrypto(
-                    classical_algorithm='ECC',
-                    ecc_curve=ecc_curve,
-                    dilithium_variant=2  # Default for certificates
-                )
+            # For PQC certificates, still need CA for signing (CA can sign any cert type)
+            ca_crypto_info = _get_ca_crypto_info(ca_data)
+            ca_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
+        else:
+            # Hybrid certificate - use the CA's algorithm settings with proper Dilithium variant
+            ca_crypto_info = _get_ca_crypto_info(ca_data)
+            crypto_instance = _create_hybrid_crypto_from_params(**ca_crypto_info)
             
             ca_crypto = crypto_instance
             cert_keys = crypto_instance.generate_hybrid_key_pair()
             algorithm_info = crypto_instance.get_hybrid_key_info(cert_keys)
         
         # Create certificate data
-        not_before = datetime.utcnow()
+        not_before = datetime.now(timezone.utc)
         not_after = not_before + timedelta(days=validity_days)
         
         cert_data_obj = {
@@ -639,6 +828,22 @@ def create_cert():
                 cert_private_keys = {
                     "ecc_private_key": crypto_instance.serialize_private_key(cert_keys[0]).decode('utf-8')
                 }
+        elif cert_type == 'pqc':
+            # Pure Post-Quantum certificate - store PQC-specific info
+            cert_data_obj["cryptographic_info"] = algorithm_info
+            
+            # Store Dilithium public key
+            dilithium_public_key = crypto_instance.dilithium_crypto.serialize_public_key(cert_keys.dilithium_public)
+            cert_data_obj["public_keys"] = {"dilithium_public_key": dilithium_public_key}
+            
+            # Generate PQC fingerprint
+            cert_data_obj["fingerprint"] = crypto_instance.get_public_key_fingerprint(cert_keys)
+            
+            # Serialize PQC private keys
+            cert_private_keys = {
+                "dilithium_private_key": crypto_instance.dilithium_crypto.serialize_private_key(cert_keys.dilithium_private),
+                "dilithium_variant": cert_keys.variant
+            }
         else:
             # Hybrid certificate - use existing hybrid logic
             cert_data_obj["cryptographic_info"] = algorithm_info
@@ -652,7 +857,15 @@ def create_cert():
             cert_private_keys = crypto_instance.serialize_hybrid_keys(cert_keys)
         
         # Load CA keys for signing
-        ca_keys_data = ca_data.get('private_keys', {})
+        ca_keys_data = ca_data.get('private_keys')
+        
+        if not ca_keys_data:
+            raise ValueError(
+                f"CA file '{ca_filename}' does not contain private keys. "
+                "This CA was likely created with an older version that didn't store private keys. "
+                "Please recreate the CA with the current version to enable certificate signing."
+            )
+        
         ca_keys = ca_crypto.deserialize_hybrid_keys(ca_keys_data)
         
         # Sign the certificate with CA keys (always hybrid signature from CA)
@@ -671,7 +884,7 @@ def create_cert():
         }
         
         # Generate filename based on certificate common name and timestamp (allows duplicates)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         safe_common_name = cert_data['common_name'].lower().replace(' ', '_').replace('.', '_')
         cert_filename = f"cert_{safe_common_name}_{timestamp}.json"
         cert_filepath = os.path.join(CERT_STORAGE_DIR, cert_filename)
@@ -680,15 +893,44 @@ def create_cert():
         with open(cert_filepath, 'w') as f:
             json.dump(cert_with_keys, f, indent=2)
         
+        # Log certificate creation activity
+        log_activity(logger, "certificate_created", {
+            'description': f'Certificate created for {cert_data["common_name"]}',
+            'common_name': cert_data['common_name'],
+            'organization': cert_data['organization'],
+            'cert_type': cert_type,
+            'key_usage': key_usage,
+            'validity_days': validity_days,
+            'issuer_ca': ca_filename,
+            'cert_filename': cert_filename,
+            'serial_number': cert_data_obj["serial_number"],
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
+        
         flash(f'Certificate for "{cert_data["common_name"]}" created successfully!', 'success')
         return redirect(url_for('list_certs'))
         
     except Exception as e:
+        # Log the error with full context
+        logger.error(f"Certificate creation failed: {str(e)}", exc_info=True)
+        
+        log_activity(logger, "certificate_creation_failed", {
+            'description': f'Failed to create certificate for {cert_data.get("common_name", "unknown")}',
+            'error_message': str(e),
+            'error_type': type(e).__name__,
+            'cert_type': cert_type if 'cert_type' in locals() else 'unknown',
+            'ca_filename': ca_filename if 'ca_filename' in locals() else 'unknown',
+            'user': g.current_user.get('username') if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
+        
         flash(f'Error creating certificate: {str(e)}', 'error')
         traceback.print_exc()
         return redirect(url_for('create_cert_form'))
 
 @app.route('/certificates')
+@login_required('cert.view')
 def list_certs():
     """List all certificates."""
     certs = []
@@ -729,6 +971,7 @@ def list_certs():
     return render_template('list_certs.html', certs=certs)
 
 @app.route('/certificate/<filename>')
+@login_required('cert.view')
 def view_cert(filename):
     """View detailed information about a specific certificate."""
     try:
@@ -748,17 +991,107 @@ def view_cert(filename):
         return redirect(url_for('list_certs'))
 
 @app.route('/download/<cert_type>/<filename>')
-def download_cert(cert_type, filename):
-    """Download certificate or CA in JSON format."""
+@app.route('/download/<cert_type>/<filename>/<format_type>')
+@login_required('cert.view')
+def download_cert(cert_type, filename, format_type='json'):
+    """Download certificate or CA in various formats."""
     try:
+        # Log download request for debugging
+        logger.info(f"Download request: cert_type={cert_type}, filename={filename}, format_type={format_type}")
+        
         if cert_type == 'ca':
             filepath = os.path.join(CA_STORAGE_DIR, filename)
         else:  # certificate
             filepath = os.path.join(CERT_STORAGE_DIR, filename)
         
+        # Check if file exists
+        if not os.path.exists(filepath):
+            flash(f'File not found: {filename}', 'error')
+            return redirect(url_for('list_certs'))
+        
+        # For JSON format or CA files, return as-is
+        if format_type == 'json' or cert_type == 'ca':
+            logger.info(f"Returning file as JSON: {filepath}")
+            return send_file(filepath, as_attachment=True, download_name=filename)
+        
+        # For certificates, check if format conversion is requested
+        if format_type in ['pem', 'der', 'crt', 'cer']:
+            logger.info(f"Format conversion requested: {format_type}")
+            
+            # Load certificate data
+            with open(filepath, 'r') as f:
+                cert_data = json.load(f)
+            
+            logger.info(f"Certificate data loaded, keys: {list(cert_data.keys())}")
+            
+            # Initialize format converter
+            converter = EnhancedCertificateFormatConverter()
+            
+            # Detect certificate type
+            cert_type_detected = converter.detect_certificate_type(cert_data)
+            logger.info(f"Detected certificate type: {cert_type_detected}")
+            
+            if cert_type_detected == 'classical':
+                logger.info(f"Converting classical certificate to {format_type}")
+                
+                # Convert classical certificate to X.509 format
+                cert_format = 'PEM' if format_type in ['pem', 'crt'] else 'DER'
+                x509_data = converter.create_x509_from_classical(cert_data, cert_format)
+                
+                if x509_data:
+                    logger.info(f"X.509 conversion successful, data length: {len(x509_data)}")
+                    
+                    # Determine file extension and content type
+                    if format_type in ['pem', 'crt']:
+                        file_ext = '.crt' if format_type == 'crt' else '.pem'
+                        content_type = 'application/x-pem-file'
+                    else:  # der, cer
+                        file_ext = '.cer' if format_type == 'cer' else '.der'
+                        content_type = 'application/x-x509-ca-cert'
+                    
+                    # Create download filename
+                    base_name = filename.replace('.json', '')
+                    download_filename = f"{base_name}{file_ext}"
+                    
+                    logger.info(f"Sending converted certificate: {download_filename}")
+                    
+                    # Create temporary file for download
+                    import io
+                    
+                    if cert_format == 'PEM':
+                        # Return PEM as text
+                        return send_file(
+                            io.BytesIO(x509_data.encode('utf-8')),
+                            as_attachment=True,
+                            download_name=download_filename,
+                            mimetype=content_type
+                        )
+                    else:
+                        # Return DER as binary
+                        return send_file(
+                            io.BytesIO(x509_data),
+                            as_attachment=True,
+                            download_name=download_filename,
+                            mimetype=content_type
+                        )
+                else:
+                    logger.error("X.509 conversion failed")
+                    flash('Unable to convert certificate to requested format', 'error')
+                    return redirect(url_for('list_certs'))
+            else:
+                logger.info(f"Non-classical certificate ({cert_type_detected}), returning as JSON")
+                # For hybrid and PQC certificates, only JSON format is supported
+                flash(f'{cert_type_detected.title()} certificates can only be downloaded in JSON format', 'warning')
+                return send_file(filepath, as_attachment=True, download_name=filename)
+        
+        # Default to JSON format
+        logger.info(f"Defaulting to JSON format for: {filepath}")
         return send_file(filepath, as_attachment=True, download_name=filename)
+        
     except Exception as e:
+        logger.error(f"Error in download_cert: {str(e)}", exc_info=True)
         flash(f'Error downloading file: {str(e)}', 'error')
+        traceback.print_exc()
         return redirect(url_for('index'))
 
 @app.route('/api/algorithms')
@@ -772,6 +1105,7 @@ def api_algorithms():
     })
 
 @app.route('/revoke_certificate/<filename>', methods=['POST'])
+@login_required('cert.revoke')
 def revoke_certificate(filename):
     """Revoke a certificate and add it to the CA's CRL."""
     try:
@@ -782,8 +1116,30 @@ def revoke_certificate(filename):
         
         certificate = cert_data.get('certificate', cert_data)
         issuer_ca_filename = cert_data.get('issuer_ca', {}).get('filename')
+        cert_common_name = certificate.get('subject', {}).get('common_name', 'Unknown')
+        cert_serial = certificate.get('serial_number')
+        
+        # Log revocation attempt
+        log_activity(logger, "certificate_revocation_initiated", {
+            'description': f'Certificate revocation initiated for {cert_common_name}',
+            'certificate_file': filename,
+            'common_name': cert_common_name,
+            'serial_number': cert_serial,
+            'issuer_ca': issuer_ca_filename,
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        })
         
         if not issuer_ca_filename:
+            log_activity(logger, "certificate_revocation_failed", {
+                'description': f'Cannot revoke certificate {cert_common_name}: issuer CA not found',
+                'certificate_file': filename,
+                'common_name': cert_common_name,
+                'serial_number': cert_serial,
+                'error': 'issuer_ca_not_found',
+                'user': g.current_user.get("username") if g.current_user else 'unknown',
+                'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+            }, level="ERROR")
             flash('Cannot revoke certificate: issuer CA not found', 'error')
             return redirect(url_for('list_certs'))
         
@@ -793,14 +1149,14 @@ def revoke_certificate(filename):
         # Add to CRL
         success = add_certificate_to_crl(
             issuer_ca_filename, 
-            certificate.get('serial_number'),
+            cert_serial,
             revocation_reason
         )
         
         if success:
             # Mark certificate as revoked
             cert_data['revoked'] = {
-                'date': datetime.utcnow().isoformat() + "Z",
+                'date': datetime.now(timezone.utc).isoformat() + "Z",
                 'reason': revocation_reason
             }
             
@@ -808,17 +1164,50 @@ def revoke_certificate(filename):
             with open(cert_filepath, 'w') as f:
                 json.dump(cert_data, f, indent=2)
             
-            flash(f'Certificate "{certificate.get("subject", {}).get("common_name", "Unknown")}" revoked successfully!', 'success')
+            # Log successful revocation
+            log_activity(logger, "certificate_revoked", {
+                'description': f'Certificate revoked successfully: {cert_common_name}',
+                'certificate_file': filename,
+                'common_name': cert_common_name,
+                'serial_number': cert_serial,
+                'revocation_reason': revocation_reason,
+                'issuer_ca': issuer_ca_filename,
+                'user': g.current_user.get("username") if g.current_user else 'unknown',
+                'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+            })
+            
+            flash(f'Certificate "{cert_common_name}" revoked successfully!', 'success')
         else:
+            # Log already revoked
+            log_activity(logger, "certificate_revocation_skipped", {
+                'description': f'Certificate {cert_common_name} was already revoked',
+                'certificate_file': filename,
+                'common_name': cert_common_name,
+                'serial_number': cert_serial,
+                'user': g.current_user.get("username") if g.current_user else 'unknown',
+                'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+            }, level="WARNING")
             flash('Certificate was already revoked', 'warning')
         
         return redirect(url_for('list_certs'))
         
     except Exception as e:
+        # Log revocation error
+        log_activity(logger, "certificate_revocation_error", {
+            'description': f'Error revoking certificate: {str(e)}',
+            'certificate_file': filename,
+            'error_message': str(e),
+            'error_type': type(e).__name__,
+            'user': g.current_user.get("username") if g.current_user else 'unknown',
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown')
+        }, level="ERROR")
+        
+        logger.error(f"Certificate revocation failed for {filename}: {str(e)}", exc_info=True)
         flash(f'Error revoking certificate: {str(e)}', 'error')
         return redirect(url_for('list_certs'))
 
 @app.route('/crl/<ca_filename>')
+@login_required('crl.view')
 def view_crl(ca_filename):
     """View CRL for a specific CA."""
     try:
@@ -829,8 +1218,8 @@ def view_crl(ca_filename):
             crl_data = {
                 "version": "v2",
                 "issuer_ca": ca_filename,
-                "this_update": datetime.utcnow().isoformat() + "Z",
-                "next_update": (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z",
+                "this_update": datetime.now(timezone.utc).isoformat() + "Z",
+                "next_update": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() + "Z",
                 "revoked_certificates": []
             }
         
@@ -848,6 +1237,7 @@ def view_crl(ca_filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/generate_crl/<ca_filename>', methods=['POST'])
+@login_required('crl.generate')
 def generate_crl(ca_filename):
     """Generate/update CRL for a specific CA."""
     try:
@@ -861,9 +1251,9 @@ def generate_crl(ca_filename):
             "version": "v2",
             "issuer_ca": ca_filename,
             "issuer": ca_data.get('certificate', ca_data).get('subject', {}),
-            "this_update": datetime.utcnow().isoformat() + "Z",
-            "next_update": (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z",
-            "crl_number": str(int(datetime.utcnow().timestamp())),
+            "this_update": datetime.now(timezone.utc).isoformat() + "Z",
+            "next_update": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() + "Z",
+            "crl_number": str(int(datetime.now(timezone.utc).timestamp())),
             "revoked_certificates": []
         }
         
@@ -896,7 +1286,15 @@ def generate_crl(ca_filename):
         hybrid_crypto = _create_hybrid_crypto_from_params(**ca_crypto_info)
         
         # Load CA keys
-        ca_keys_data = ca_data.get('private_keys', {})
+        ca_keys_data = ca_data.get('private_keys')
+        
+        if not ca_keys_data:
+            raise ValueError(
+                f"CA file '{ca_filename}' does not contain private keys. "
+                "This CA was likely created with an older version that didn't store private keys. "
+                "Please recreate the CA with the current version to enable CRL generation."
+            )
+        
         ca_keys = hybrid_crypto.deserialize_hybrid_keys(ca_keys_data)
         
         # Sign CRL
@@ -922,6 +1320,7 @@ def generate_crl(ca_filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/download_crl/<ca_filename>')
+@login_required('crl.view')
 def download_crl(ca_filename):
     """Download CRL for a specific CA."""
     try:
@@ -938,6 +1337,7 @@ def download_crl(ca_filename):
         return redirect(url_for('list_cas'))
 
 @app.route('/api/verify/<cert_type>/<filename>')
+@login_required('cert.view')
 def api_verify(cert_type, filename):
     """API endpoint to verify a certificate or CA signature."""
     try:
@@ -968,6 +1368,7 @@ def api_verify(cert_type, filename):
 # Email Notification Routes
 
 @app.route('/notifications')
+@login_required('notifications.view')
 def notification_settings():
     """Show email notification configuration page."""
     try:
@@ -979,6 +1380,7 @@ def notification_settings():
         return redirect(url_for('index'))
 
 @app.route('/notifications/settings', methods=['POST'])
+@login_required('notifications.view')
 def update_notification_settings():
     """Update email notification settings."""
     try:
@@ -1021,6 +1423,7 @@ def update_notification_settings():
         return redirect(url_for('notification_settings'))
 
 @app.route('/notifications/test', methods=['POST'])
+@login_required('notifications.view')
 def test_email_notification():
     """Send a test email notification."""
     try:
@@ -1044,6 +1447,7 @@ def test_email_notification():
         return redirect(url_for('notification_settings'))
 
 @app.route('/notifications/check', methods=['POST'])
+@login_required('notifications.view')
 def check_notifications_now():
     """Manually trigger certificate expiration check."""
     try:
@@ -1063,6 +1467,7 @@ def check_notifications_now():
         return redirect(url_for('notification_settings'))
 
 @app.route('/notifications/history')
+@login_required('notifications.view')
 def notification_history():
     """View notification history."""
     try:
@@ -1072,6 +1477,114 @@ def notification_history():
     except Exception as e:
         flash(f'Error loading notification history: {str(e)}', 'error')
         return redirect(url_for('index'))
+
+# Log Viewer Routes
+
+@app.route('/admin/logs')
+@admin_required
+def view_logs():
+    """Display system logs with filtering and pagination."""
+    try:
+        # Get available log files
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        if not os.path.exists(log_dir):
+            flash('No logs directory found', 'warning')
+            return redirect(url_for('index'))
+        
+        log_files = []
+        for filename in os.listdir(log_dir):
+            if filename.endswith('.log'):
+                filepath = os.path.join(log_dir, filename)
+                stat = os.stat(filepath)
+                log_files.append({
+                    'name': filename,
+                    'size': stat.st_size,
+                    'modified': datetime.fromtimestamp(stat.st_mtime, timezone.utc),
+                    'path': filepath
+                })
+        
+        # Sort by modification time (newest first)
+        log_files.sort(key=lambda x: x['modified'], reverse=True)
+        
+        # Get filter parameters
+        selected_log = request.args.get('log', log_files[0]['name'] if log_files else None)
+        level_filter = request.args.get('level', 'ALL')
+        search_term = request.args.get('search', '')
+        lines = int(request.args.get('lines', 100))
+        
+        log_entries = []
+        if selected_log:
+            log_entries = _read_log_file(log_dir, selected_log, level_filter, search_term, lines)
+        
+        return render_template('admin/view_logs.html', 
+                             log_files=log_files,
+                             selected_log=selected_log,
+                             level_filter=level_filter,
+                             search_term=search_term,
+                             lines=lines,
+                             log_entries=log_entries)
+    except Exception as e:
+        flash(f'Error loading logs: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/admin/logs/download/<filename>')
+@admin_required
+def download_log(filename):
+    """Download a log file."""
+    try:
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        log_path = os.path.join(log_dir, filename)
+        
+        # Security check: ensure filename is just a filename, not a path
+        if not filename or '/' in filename or '\\' in filename or '..' in filename:
+            flash('Invalid log filename', 'error')
+            return redirect(url_for('view_logs'))
+        
+        # Check if file exists
+        if not os.path.exists(log_path) or not filename.endswith('.log'):
+            flash('Log file not found', 'error')
+            return redirect(url_for('view_logs'))
+        
+        return send_file(log_path, as_attachment=True, download_name=filename)
+    except Exception as e:
+        flash(f'Error downloading log file: {str(e)}', 'error')
+        return redirect(url_for('view_logs'))
+
+@app.route('/admin/logs/clear/<filename>', methods=['POST'])
+@admin_required
+def clear_log(filename):
+    """Clear a log file (truncate to zero bytes)."""
+    try:
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        log_path = os.path.join(log_dir, filename)
+        
+        # Security check: ensure filename is just a filename, not a path
+        if not filename or '/' in filename or '\\' in filename or '..' in filename:
+            flash('Invalid log filename', 'error')
+            return redirect(url_for('view_logs'))
+        
+        # Check if file exists
+        if not os.path.exists(log_path) or not filename.endswith('.log'):
+            flash('Log file not found', 'error')
+            return redirect(url_for('view_logs'))
+        
+        # Truncate the file
+        with open(log_path, 'w') as f:
+            pass  # Opening in 'w' mode truncates the file
+        
+        # Log this action
+        log_activity(logger, "log_file_cleared", {
+            'description': f'Log file cleared: {filename}',
+            'log_file': filename,
+            'user_ip': request.environ.get('REMOTE_ADDR', 'unknown'),
+            'admin_user': g.current_user.get("username") if g.current_user else 'unknown'
+        })
+        
+        flash(f'Log file {filename} has been cleared successfully', 'success')
+        return redirect(url_for('view_logs', log=filename))
+    except Exception as e:
+        flash(f'Error clearing log file: {str(e)}', 'error')
+        return redirect(url_for('view_logs'))
 
 @app.errorhandler(404)
 def not_found(error):
@@ -1087,11 +1600,188 @@ def internal_error(error):
                          error_code=500, 
                          error_message="Internal server error"), 500
 
+# Log file helper functions
+def _read_log_file(log_dir, filename, level_filter='ALL', search_term='', lines=100):
+    """Read and parse log file with filtering."""
+    log_path = os.path.join(log_dir, filename)
+    
+    if not os.path.exists(log_path):
+        return []
+    
+    try:
+        entries = []
+        with open(log_path, 'r', encoding='utf-8') as f:
+            # Read the last N lines efficiently
+            all_lines = f.readlines()
+            recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+        
+        for line_num, line in enumerate(recent_lines, 1):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Parse standard log format: timestamp | level | logger | function:line | message
+            entry = _parse_log_line(line, line_num)
+            
+            # Apply level filter
+            if level_filter != 'ALL' and entry.get('level', '').upper() != level_filter.upper():
+                continue
+            
+            # Apply search filter
+            if search_term:
+                searchable_text = f"{entry.get('message', '')} {entry.get('logger', '')} {entry.get('function', '')} {entry.get('user', '')}".lower()
+                if search_term.lower() not in searchable_text:
+                    continue
+            
+            entries.append(entry)
+        
+        # Sort entries by timestamp (descending - newest first)
+        entries.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return entries[-lines:] if len(entries) > lines else entries
+        
+    except Exception as e:
+        logger.error(f"Error reading log file {filename}: {e}")
+        return [{'error': f'Error reading log file: {str(e)}', 'line_num': 1}]
+
+def _parse_log_line(line, line_num):
+    """Parse a single log line into structured data."""
+    try:
+        # Standard format: 2025-08-13 13:14:11 | INFO     | qpki.web             | log_activity        :225  | Activity: web_app_startup - qPKI Web Application starting
+        parts = line.split(' | ')
+        
+        if len(parts) >= 5:
+            timestamp_str = parts[0]
+            level = parts[1].strip()
+            logger_name = parts[2].strip()
+            func_line = parts[3].strip()
+            message = ' | '.join(parts[4:])  # In case message contains pipes
+            
+            # Parse function and line number
+            func_parts = func_line.split(':')
+            function = func_parts[0].strip() if func_parts else 'unknown'
+            line_no = func_parts[1].strip() if len(func_parts) > 1 else ''
+            
+            # Extract user information from message if it's a structured log activity
+            user = 'system'  # Default to 'system' for non-user activities
+            
+            # Check if this is a log_activity message that might contain user info
+            if 'Activity:' in message:
+                import re
+                
+                # First check for the new format: [User: username]
+                user_bracket_match = re.search(r'\[User: ([^\]]+)\]', message)
+                if user_bracket_match:
+                    user = user_bracket_match.group(1)
+                else:
+                    # Fallback to old patterns for backward compatibility
+                    if 'User ' in message:
+                        # Pattern: "User username viewed ..." or "User 'username' ..."
+                        user_patterns = [
+                            r"User ([\w\.-]+) ",  # User username 
+                            r"User '([^']+)' ",   # User 'username' 
+                            r"User \"([^\"]+)\" "  # User "username" 
+                        ]
+                        for pattern in user_patterns:
+                            match = re.search(pattern, message)
+                            if match:
+                                user = match.group(1)
+                                break
+                    elif 'admin_user:' in message:
+                        # Pattern: "... admin_user: username ..."
+                        match = re.search(r'admin_user:\s*([\w\.-]+)', message)
+                        if match:
+                            user = match.group(1)
+                # For other activity logs, keep as 'system'
+            elif function == 'log_activity':
+                # This is a log_activity call, but might not have explicit user in message
+                # Keep as 'system' unless we can extract it
+                pass
+            else:
+                # Non-activity logs (startup, errors, etc.) - keep as 'system'
+                pass
+            
+            return {
+                'line_num': line_num,
+                'timestamp': timestamp_str,
+                'level': level,
+                'logger': logger_name,
+                'function': function,
+                'code_line': line_no,
+                'message': message,
+                'user': user,
+                'raw_line': line
+            }
+        else:
+            # Fallback for non-standard format
+            return {
+                'line_num': line_num,
+                'timestamp': '',
+                'level': 'UNKNOWN',
+                'logger': '',
+                'function': '',
+                'code_line': '',
+                'message': line,
+                'user': 'unknown',
+                'raw_line': line
+            }
+    except Exception as e:
+        return {
+            'line_num': line_num,
+            'timestamp': '',
+            'level': 'ERROR',
+            'logger': 'log_parser',
+            'function': '_parse_log_line',
+            'code_line': '',
+            'message': f'Error parsing line: {str(e)}',
+            'user': 'system',
+            'raw_line': line
+        }
+
+# Add context processor for authentication
+@app.context_processor
+def inject_auth_context():
+    """Inject authentication context into all templates."""
+    if hasattr(g, 'current_user') and g.current_user:
+        return {
+            'current_user': g.current_user,
+            'is_authenticated': True
+        }
+    return {
+        'current_user': None,
+        'is_authenticated': False
+    }
+
+# Session cleanup before each request
+@app.before_request
+def cleanup_sessions():
+    """Clean up expired sessions periodically."""
+    if app.auth_manager and hasattr(request, 'endpoint'):
+        # Only cleanup on main page requests, not for static files or API calls
+        if request.endpoint and not request.endpoint.startswith(('static', 'api')):
+            try:
+                app.auth_manager.cleanup_expired_sessions()
+            except Exception as e:
+                logger.debug(f"Session cleanup error: {e}")
+
 if __name__ == '__main__':
-    port = int(os.environ.get('WEB_PORT', 9090))
     print("Starting qPKI Web Application...")
     print(f"Certificate storage: {CERT_STORAGE_DIR}")
     print(f"CA storage: {CA_STORAGE_DIR}")
-    print(f"Access the application at: http://localhost:{port}")
     
-    app.run(debug=True, host='0.0.0.0', port=port)
+    if app.auth_manager:
+        print("✓ Database authentication enabled")
+        try:
+            # Try to create default admin if needed
+            success, message = app.auth_manager.create_default_admin()
+            if success:
+                print(f"  {message}")
+        except:
+            pass
+    else:
+        print("⚠ File-based mode (no authentication)")
+    
+    print("Access the application at: http://localhost:9090")
+    print("Login page: http://localhost:9090/auth/login")
+    
+    app.run(debug=True, host='0.0.0.0', port=9090)
