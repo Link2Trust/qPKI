@@ -164,7 +164,7 @@ def _configure_swagger(app):
             "version": app.config['API_VERSION'],
             "contact": {
                 "name": "qPKI API Support",
-                "email": "support@link2trust.com"
+                "email": "support@yourdomain.com"
             },
             "license": {
                 "name": "MIT License",

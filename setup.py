@@ -16,7 +16,7 @@ setup(
     name="qpki",
     version="0.1.0",
     author="Link2Trust",
-    author_email="info@link2trust.com",
+    author_email="info@yourdomain.com",
     description="Quantum-Safe Hybrid Public Key Infrastructure",
     long_description=long_description,
     long_description_content_type="text/markdown",

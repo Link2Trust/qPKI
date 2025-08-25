@@ -7,7 +7,7 @@ for educational and research purposes.
 
 __version__ = "0.1.0"
 __author__ = "Link2Trust"
-__email__ = "info@link2trust.com"
+__email__ = "info@yourdomain.com"
 
 from .crypto.hybrid_crypto import HybridCrypto, FlexibleHybridCrypto
 from .crypto import RSACrypto, ECCCrypto, DilithiumCrypto

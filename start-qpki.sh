@@ -36,4 +36,4 @@ echo ""
 echo "Starting application..."
 echo ""
 
-python app.py
+nohup python3 app.py > app.log 2>&1 &

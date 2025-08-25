@@ -1781,7 +1781,7 @@ if __name__ == '__main__':
     else:
         print("⚠ File-based mode (no authentication)")
     
-    print("Access the application at: http://localhost:9090")
-    print("Login page: http://localhost:9090/auth/login")
-    
+    print(f"Access the application at: http://localhost:{port}")
+    print(f"Login page: http://localhost:{port}/auth/login")
+    print(f"   • Access qPKI at http://localhost:{port}")
     app.run(debug=True, host='0.0.0.0', port=9090)

@@ -30,8 +30,12 @@ The qPKI system is a revolutionary hybrid Public Key Infrastructure that combine
 
 ### Core Services
 - **Hybrid Certificate Authority**: Central PKI management and certificate issuance
+- **Authentication & Authorization System**: Role-based access control with MFA support
+- **Demo User Isolation**: Separate database routing for demo vs production users
+- **Database Layer**: SQLAlchemy ORM with support for SQLite, PostgreSQL, MySQL
 - **Key Manager**: Cryptographic key lifecycle management
 - **Email Notification Service**: Automated certificate expiration monitoring
+- **Deployment Safety System**: Backup and safety checks for production deployments
 
 ### Cryptographic Layer
 - **Hybrid Cryptography**: Dual signing with classical and post-quantum algorithms

@@ -42,6 +42,22 @@ def initialize_database():
         else:
             print(f"ℹ {message}")
         
+        # Create demo user for production
+        print("Creating demo user...")
+        demo_user_data = {
+            'username': 'demo',
+            'email': 'demo@qpki.local',
+            'full_name': 'Demo User',
+            'role': UserRole.OPERATOR.value,
+            'password': 'demo'
+        }
+        
+        success, user, message = auth_manager.create_user(demo_user_data, 'system')
+        if success:
+            print(f"✓ Created demo user: {user.username} ({user.role})")
+        else:
+            print(f"ℹ Demo user already exists")
+        
         # Test database connection
         if db_manager.check_connection():
             print("✓ Database connection test successful")

@@ -168,11 +168,28 @@ python3 scripts/init_database.py
 python3 scripts/init_database.py --sample-users
 ```
 
+### Configuration
+
+1. **Environment Setup**
+   ```bash
+   # Copy configuration template
+   cp .env.example .env
+   
+   # Edit configuration for your environment
+   nano .env
+   ```
+
+2. **Key Configuration Options**
+   - `WEB_PORT`: Application port (default: 9090)
+   - `DATABASE_URL`: Database connection (SQLite or PostgreSQL)
+   - `SECRET_KEY`: Application secret key (generate a secure one!)
+   - `SMTP_*`: Email notification settings
+
 ### Basic Usage
 
 ```bash
 # Initialize a new hybrid CA
-qpki ca init --name "Hybrid-CA" --org "Link2Trust Educational"
+qpki ca init --name "Hybrid-CA" --org "Your Organization"
 
 # Generate a hybrid certificate
 qpki cert generate --subject "CN=example.com" --ca-name "Hybrid-CA"
@@ -192,8 +209,8 @@ For a user-friendly experience, start the web interface:
 # Start the Flask web application
 python3 app.py
 
-# Or with debugging enabled
-FLASK_ENV=development python3 app.py
+# Or use the startup script
+./start-qpki.sh
 ```
 
 Then visit `http://localhost:9090` to access the comprehensive web interface:
@@ -603,6 +620,114 @@ python3 scripts/init_database.py --reset
 - [ ] Service auto-start enabled
 - [ ] Security headers configured
 - [ ] Regular security updates scheduled
+
+## 🛡️ Safe Deployment & Upgrades
+
+### Pre-Deployment Safety Check
+
+qPKI includes comprehensive safety checks to prevent data loss during deployment:
+
+```bash
+# Always run safety check before deployment
+./scripts/check_deployment.sh
+
+# Example output:
+[FOUND] qPKI user exists
+[CRITICAL] Found 23 certificate/CA files in data directory
+[FOUND] Existing configuration file
+
+=== BACKUP RECOMMENDATIONS ===
+1. PKI Data: sudo tar -czf qpki-data-backup-$(date).tar.gz /opt/qpki/data/
+2. Configuration: sudo cp /opt/qpki/app/.env config-backup.env
+```
+
+### Automated Production Deployment
+
+For production environments, use the automated deployment script with safety features:
+
+```bash
+# Configure your domain (replace with your actual domain)
+export QPKI_DOMAIN="your-domain.com"
+
+# Run production deployment (includes safety checks)
+sudo ./deploy_example.sh native
+```
+
+The deployment script includes:
+- ✅ **Existing installation detection**
+- ✅ **Interactive confirmation prompts**  
+- ✅ **Automatic backup creation**
+- ✅ **Configuration preservation**
+- ✅ **SSL certificate management**
+- ✅ **Service configuration**
+
+### Configuration Management
+
+**Template-Based Configuration:**
+```bash
+# Copy and customize configuration template
+cp .env.example .env
+nano .env  # Customize for your environment
+
+# For deployment-specific settings
+cp config/deployment.conf.example config/deployment.conf
+```
+
+**Safe Configuration Updates:**
+- Existing `.env` files are automatically backed up
+- New configuration options are merged from templates
+- Critical settings are preserved during updates
+- Timestamped backups allow easy rollback
+
+### Deployment Safety Features
+
+1. **Backup Protection**
+   - Automatic timestamped backups before changes
+   - Separate backups for application, data, and configuration
+   - Easy recovery procedures documented
+
+2. **Interactive Confirmation**
+   - Prompts before overwriting existing installations
+   - Clear information about what will be changed
+   - Option to cancel if critical data detected
+
+3. **Selective Updates**
+   - Preserves existing certificate and CA data
+   - Maintains custom configuration settings
+   - Updates only application code when appropriate
+
+4. **Rollback Support**
+   - All backups include restoration instructions
+   - Service restart procedures documented
+   - Database recovery options available
+
+### Documentation
+
+For comprehensive deployment safety procedures, see:
+- **[Deployment Safety Guide](docs/DEPLOYMENT_SAFETY.md)** - Complete safety procedures
+- **[Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md)** - Production setup instructions
+
+### Example Safe Deployment Workflow
+
+```bash
+# 1. Safety check
+./scripts/check_deployment.sh
+
+# 2. Create manual backup (if needed)
+sudo tar -czf full-backup-$(date +%Y%m%d).tar.gz /opt/qpki
+
+# 3. Deploy with safety features
+sudo QPKI_DOMAIN="your-domain.com" ./scripts/setup_production.sh
+
+# 4. Verify deployment
+curl -k https://your-domain.com/health
+sudo systemctl status qpki nginx
+
+# 5. Test functionality
+# - Login with existing users
+# - Verify certificates are accessible
+# - Check that email notifications work
+```
 
 ## 📚 Complete Documentation
 
