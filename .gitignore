@@ -122,3 +122,6 @@ test_certs/
 .vscode/
 *.sublime-*
 
+.bash_logout
+qpki-architecture-archimate.txt
+qpki-visual-architecture.txt
